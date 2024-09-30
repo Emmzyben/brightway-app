@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "rn-DoctorOpsUserApp",
+    "name": "RN DoctorOps User App",
     "slug": "rn-DoctorOpsUserApp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,17 +8,25 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#fff"
     },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.render.rndoctoropsuserapp",
+      "supportsTablet": false
     },
     "android": {
+      "package": "com.render.rndoctoropsuserapp",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR GOOGLE MAP API KEY HERE"
+        }
       }
     },
     "web": {
@@ -27,7 +35,8 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

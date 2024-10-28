@@ -1,11 +1,16 @@
-import { StyleSheet, Text, View, Image, TextInput, FlatList, ScrollView, Dimensions } from 'react-native'
-import React, { useRef, useState, useEffect } from 'react'
-import { Colors, Fonts, Sizes } from '../../constants/styles'
+import { StyleSheet, Text, View, Image, TextInput, FlatList, ScrollView, Dimensions } from 'react-native';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from "@react-navigation/native";
+import { Colors, Fonts, Sizes } from '../../constants/styles';
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
-import { showRating } from '../../components/showRatings';
+import { useIsFocused } from '@react-navigation/native';
+
 import Banner from '../../components/banner';
 import UserInfo from '../../components/userInfo';
 import { TouchableOpacity } from 'react-native-gesture-handler';
+import useGetServices from '../../hooks/useGetServices';
+import useFetchUserAppointments from '../../hooks/useFetchUserAppointments';
+
 
 const { width } = Dimensions.get('window');
 
@@ -28,68 +33,22 @@ const banners = [
     },
 ];
 
-const categoryList = [
-    {
-        id: '1',
-        categoryIcon: require('../../assets/images/category/cardiologist.png'),
-        category: 'Cardiologist',
-        bgColor: '#F3E5F5',
-    },
-    {
-        id: '2',
-        categoryIcon: require('../../assets/images/category/pediatrician.png'),
-        category: 'Pediatrician',
-        bgColor: '#E3F2FD',
-    },
-    {
-        id: '3',
-        categoryIcon: require('../../assets/images/category/pharmacist.png'),
-        category: 'Pharmacist',
-        bgColor: '#E0F7FA',
-    },
-    {
-        id: '4',
-        categoryIcon: require('../../assets/images/category/therapist.png'),
-        category: 'Therapist',
-        bgColor: '#E8F5E9',
-    },
-    {
-        id: '5',
-        categoryIcon: require('../../assets/images/category/dentist.png'),
-        category: 'Dentist',
-        bgColor: '#E0F2F1',
-    },
+const images = [
+    require('../../assets/images/category/cardiologist.png'),
+    require('../../assets/images/category/pediatrician.png'),
+    require('../../assets/images/category/pharmacist.png'),
+    require('../../assets/images/category/therapist.png'),
+    require('../../assets/images/category/dentist.png'),
 ];
+const getRandomImage = () => {
+    const randomIndex = Math.floor(Math.random() * images.length);
+    return images[randomIndex];
+};
+const getRandomBackgroundColor = () => {
+    const colors = ['#F3E5F5', '#E3F2FD', '#E0F7FA', '#E8F5E9', '#E0F2F1'];
+    return colors[Math.floor(Math.random() * colors.length)];
+};
 
-const providerList = [
-    {
-        id: '1',
-        providerName: 'Dr Richard Wood',
-        booking: 'May 3, 10am',
-        rating: 5.0,
-        ProviderImage: [
-            require('../../assets/images/doctors/doctor1.png'),
-        ],
-    },
-    {
-        id: '2',
-        providerName: 'Dr Mile Wood',
-        booking: 'May 6, 11am',
-        rating: 5.0,
-        ProviderImage: [
-            require('../../assets/images/doctors/doctor2.png'),
-        ],
-    },
-    {
-        id: '3',
-        providerName: 'Dr Richardson green',
-        booking: 'May 30, 10am',
-        rating: 5.0,
-        ProviderImage: [
-            require('../../assets/images/doctors/doctor3.png'),
-        ],
-    },
-];
 
 const pendingNotifications= [
     {
@@ -105,25 +64,50 @@ const pendingNotifications= [
 
 ];
 const HomeScreen = ({ navigation }) => {
-
+    const { services, loading, error } = useGetServices();
     const bannerRef = useRef();
+    const { appointments, fetchAppointments } = useFetchUserAppointments();
+    const [allloading, setLoading] = useState(true);
+    const isFocused = useIsFocused();
+
+    useEffect(() => {
+        if (isFocused) {
+            fetchAppointments();
+            const timer = setTimeout(() => setLoading(false), 10000);
+            
+            return () => clearTimeout(timer);
+        }
+    }, [isFocused]);
+
+    const upcomingAppointments = appointments.filter(item => ['pending', 'confirmed'].includes(item.status));
 
     useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
-            bannerRef.current.startAutoplay();
+            if (bannerRef.current) {
+                bannerRef.current.startAutoplay();
+            }
         });
         return unsubscribe;
     }, [navigation]);
 
     useEffect(() => {
         const unsubscribe = navigation.addListener('blur', () => {
-            bannerRef.current.stopAutoplay();
+            if (bannerRef.current) {
+                bannerRef.current.stopAutoplay();
+            }
         });
         return unsubscribe;
     }, [navigation]);
 
-    const [searchFieldFocus, setsearchFieldFocus] = useState(false);
-    const [search, setsearch] = useState('');
+    const [searchFieldFocus, setSearchFieldFocus] = useState(false);
+    const [search, setSearch] = useState('');
+    const handleSearchSubmit = () => {
+        if (search.trim()) {
+            navigation.navigate('SearchCategoryDetailScreen', { name: search.trim() });
+            setSearch('');
+        }
+    };
+
 
     return (
         <View style={{ flex: 1, backgroundColor: Colors.bodyBackColor }}>
@@ -135,14 +119,103 @@ const HomeScreen = ({ navigation }) => {
                         <Banner banners={banners} bannerRef={bannerRef} />
                         {categoryInfo()}
                         {notifications()}
-                        {UpcomingAppointments()}
+                        {upcomingAppointmentsInfo()}
                     </>
                 }
                 showsVerticalScrollIndicator={false}
-                automaticallyAdjustKeyboardInsets={true}
+                contentContainerStyle={{ paddingBottom: Sizes.fixPadding * 2 }}
             />
         </View>
-    )
+    );
+
+    function upcomingAppointmentsInfo() {
+        if (upcomingAppointments.length === 0) {
+            return noAppointmentsInfo('No Upcoming Appointments');
+        }
+    
+        return (
+            <>
+                <View style={{ margin: Sizes.fixPadding * 2.0, flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ ...Fonts.blackColor18SemiBold, flex: 1 }}>
+                        Upcoming appointments
+                    </Text>
+                </View>
+
+                <FlatList
+    data={upcomingAppointments}
+    initialNumToRender={5} // Limit initial render
+    removeClippedSubviews={true}
+    keyExtractor={item => `${item.id}`}
+    renderItem={renderAppointmentItem}
+    showsVerticalScrollIndicator={false}
+    contentContainerStyle={{ paddingTop: Sizes.fixPadding }}
+/>
+
+            </>
+        );
+    }
+
+    function renderAppointmentItem({ item }) {
+        return (
+            <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => { navigation.push('AppointmentDetail', { appointmentId: item.appointmentId }) }}
+                style={styles.hospitalInfoWrapStyle}
+            >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View
+                        style={{
+                            backgroundColor: "#F3E5F5",
+                            ...styles.notificationIconWrapStyle,
+                        }}
+                    >
+                        <Ionicons
+                            name="notifications"
+                            size={20}
+                            color='rgba(58, 155, 195, 0.80)'
+                        />
+                    </View>
+                    <View style={{ flex: 0.65, marginRight: Sizes.fixPadding - 5.0 }}>
+                        <Text numberOfLines={1} style={{ ...Fonts.blackColor16Medium }}>
+                            {item.providerFirstName} {item.providerLastName}
+                        </Text>
+                        <Text numberOfLines={1} style={{ marginTop: Sizes.fixPadding - 8.0, marginBottom: Sizes.fixPadding - 5.0, ...Fonts.grayColor14Medium }}>
+                            {item.bookDate} {item.bookTime}
+                        </Text>
+                    </View>
+                    <View style={{ flex: 0.35 }}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            <Image
+                                source={{ uri: item.providerProfile_picture }}
+                                style={styles.hospitalImagesStyle}
+                            />
+                        </ScrollView>
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
+    }
+  
+   
+    function noAppointmentsInfo(message) {
+        return (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ margin: Sizes.fixPadding * 2.0, flexDirection: 'row', alignItems: 'center' ,marginBottom:30 }}>
+                    <Text style={{ ...Fonts.blackColor18SemiBold, flex: 1 }}>
+                        Upcoming appointments
+                    </Text>
+                </View>
+                <MaterialIcons
+                    name='event-note'
+                    color={Colors.lightGrayColor}
+                    size={40}
+                />
+                <Text style={{ marginTop: Sizes.fixPadding, ...Fonts.grayColor16SemiBold }}>
+                    {message}
+                </Text>
+            </View>
+        );
+    }
 
     function notifications() {
         const renderItem = ({ item }) => (
@@ -151,20 +224,20 @@ const HomeScreen = ({ navigation }) => {
                 onPress={() => { navigation.push('Notifications') }}
                 style={styles.hospitalInfoWrapStyle}
             >
-                <View style={{ flexDirection: 'row', alignItems: 'center', }}>
-                <View
-                style={{
-                  backgroundColor: "#F3E5F5",
-                  ...styles.notificationIconWrapStyle,
-                }}
-              >
-                <Ionicons
-                  name="notifications"
-                  size={20}
-                  color='rgba(58, 155, 195, 0.80)'
-                />
-              </View>
-                    <View style={{ flex: 0.65, marginRight: Sizes.fixPadding - 5.0, }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View
+                        style={{
+                            backgroundColor: "#F3E5F5",
+                            ...styles.notificationIconWrapStyle,
+                        }}
+                    >
+                        <Ionicons
+                            name="notifications"
+                            size={20}
+                            color='rgba(58, 155, 195, 0.80)'
+                        />
+                    </View>
+                    <View style={{ flex: 0.65, marginRight: Sizes.fixPadding - 5.0 }}>
                         <Text numberOfLines={1} style={{ ...Fonts.blackColor16Medium }}>
                             {item.notification}
                         </Text>
@@ -172,122 +245,75 @@ const HomeScreen = ({ navigation }) => {
                             {item.time}
                         </Text>
                     </View>
-                  
                 </View>
-               
-               
             </TouchableOpacity>
-        )
+        );
+
         return (
             <View>
-                <View style={{ margin: Sizes.fixPadding * 2.0, flexDirection: 'row', alignItems: 'center', }}>
-                    <Text style={{ ...Fonts.blackColor18SemiBold, flex: 1, }}>
-                       Pending Notifications
+                <View style={{ margin: Sizes.fixPadding * 2.0, flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ ...Fonts.blackColor18SemiBold, flex: 1 }}>
+                        Pending Notifications
                     </Text>
                     <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => { navigation.push('Notifications') }}
-            >
-            <Text>View all</Text>
-            </TouchableOpacity>
-              </View>
+                        activeOpacity={0.8}
+                        onPress={() => { navigation.push('Notifications') }}
+                    >
+                        <Text>View all</Text>
+                    </TouchableOpacity>
+                </View>
                 <FlatList
                     data={pendingNotifications}
+                    removeClippedSubviews={true}
                     keyExtractor={(item) => `${item.id}`}
                     renderItem={renderItem}
                     scrollEnabled={false}
-                    automaticallyAdjustKeyboardInsets={true}
+                    contentContainerStyle={{ paddingBottom: Sizes.fixPadding }}
                 />
             </View>
-        )
-    }
-
-    function UpcomingAppointments() {
-        const renderItem = ({ item }) => (
-            <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => { navigation.push('AppointmentDetail') }}
-                style={styles.hospitalInfoWrapStyle}
-            >
-                <View style={{ flexDirection: 'row', alignItems: 'center', }}>
-                    <View style={{ flex: 0.65, marginRight: Sizes.fixPadding - 5.0, }}>
-                        <Text numberOfLines={1} style={{ ...Fonts.blackColor16Medium }}>
-                            {item.providerName}
-                        </Text>
-                        <Text numberOfLines={1} style={{ marginTop: Sizes.fixPadding - 8.0, marginBottom: Sizes.fixPadding - 5.0, ...Fonts.grayColor14Medium }}>
-                            {item.booking}
-                        </Text>
-                        {showRating({ number: item.rating })}
-                    </View>
-                    <View style={{ flex: 0.35, }}>
-                        <ScrollView
-                            onPointerEnter={() => { }}
-                            horizontal showsHorizontalScrollIndicator={false}>
-                            {
-                                item.ProviderImage.map((image, index) => (
-                                    <Image
-                                        key={`${index}`}
-                                        source={image}
-                                        style={styles.hospitalImagesStyle}
-                                    />
-                                ))
-                            }
-                        </ScrollView>
-                    </View>
-                </View>
-               
-               
-            </TouchableOpacity>
-        )
-        return (
-            <View>
-                <View style={{ margin: Sizes.fixPadding * 2.0, flexDirection: 'row', alignItems: 'center', }}>
-                    <Text style={{ ...Fonts.blackColor18SemiBold, flex: 1, }}>
-                        Upcoming appointments
-                    </Text>
-              </View>
-                <FlatList
-                    data={providerList}
-                    keyExtractor={(item) => `${item.id}`}
-                    renderItem={renderItem}
-                    scrollEnabled={false}
-                    automaticallyAdjustKeyboardInsets={true}
-                />
-            </View>
-        )
+        );
     }
 
     function categoryInfo() {
-        const renderItem = ({ item }) => (
-            <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => { navigation.push('CategoryDetail') }}
-                style={{ backgroundColor: item.bgColor, ...styles.categoryWrapStyle, }}
-            >
-                <Image
-                    source={item.categoryIcon}
-                    style={{ width: 36.0, height: 36.0, resizeMode: 'contain' }}
-                />
-                <Text numberOfLines={1} style={{ ...Fonts.blackColor14Medium, marginTop: Sizes.fixPadding, }}>
-                    {item.category}
-                </Text>
-            </TouchableOpacity>
-        )
+        const renderItem = ({ item }) => {
+            return (
+                <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => { navigation.push('CategoryDetail', { item }) }}
+                    style={{ backgroundColor: getRandomBackgroundColor(), ...styles.categoryWrapStyle }}
+                >
+                    <Image
+                        source={getRandomImage()} 
+                        style={{ width: 36.0, height: 36.0, resizeMode: 'contain' }}
+                    />
+                    <Text numberOfLines={1} style={{ ...Fonts.blackColor14Medium, marginTop: Sizes.fixPadding }}>
+                        {item}
+                    </Text>
+                </TouchableOpacity>
+            );
+        };
+        
         return (
-            <View style={{ marginTop: Sizes.fixPadding * 4.0, }}>
-                <Text style={{ marginBottom: Sizes.fixPadding + 5.0, marginHorizontal: Sizes.fixPadding * 2.0, ...Fonts.blackColor18SemiBold }}>
-                   Services
+            <View style={{ marginTop: Sizes.fixPadding * 4.0, marginHorizontal: Sizes.fixPadding * 2.0 }}>
+                <Text style={{ marginBottom: Sizes.fixPadding + 5.0, ...Fonts.blackColor18SemiBold }}>
+                    Services
                 </Text>
                 <FlatList
-                    data={categoryList}
-                    keyExtractor={(item) => `${item.id}`}
+                    data={services}
+                    removeClippedSubviews={true} 
+                    keyExtractor={(item, index) => `${index}`} 
                     renderItem={renderItem}
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingLeft: Sizes.fixPadding + 10.0, }}
+                    contentContainerStyle={{ paddingLeft: Sizes.fixPadding + 10.0 }}
+                    ListEmptyComponent={() => (
+                        <View style={{ padding: Sizes.fixPadding * 2, alignItems: 'center' }}>
+                            <Text style={{ ...Fonts.grayColor14Medium }}>No services available.</Text>
+                        </View>
+                    )}
                 />
             </View>
-        )
+        );
     }
 
     function searchField() {
@@ -299,20 +325,22 @@ const HomeScreen = ({ navigation }) => {
                         placeholder='Search'
                         placeholderTextColor={Colors.grayColor}
                         style={styles.searchFieldStyle}
-                        onFocus={() => { setsearchFieldFocus(true) }}
-                        onBlur={() => { setsearchFieldFocus(false) }}
+                        onFocus={() => setSearchFieldFocus(true)}
+                        onBlur={() => setSearchFieldFocus(false)}
                         cursorColor={Colors.primaryColor}
                         selectionColor={Colors.primaryColor}
                         value={search}
-                        onChangeText={(value) => { setsearch(value) }}
+                        onChangeText={(value) => setSearch(value)}
+                        onSubmitEditing={handleSearchSubmit} 
+                        returnKeyType="search"
                     />
                 </View>
             </View>
-        )
+        );
     }
 }
 
-export default HomeScreen
+export default HomeScreen;
 
 const styles = StyleSheet.create({
     searchFieldWrapStyle: {
@@ -340,7 +368,8 @@ const styles = StyleSheet.create({
         height: 80.0,
         borderRadius: Sizes.fixPadding - 5.0,
         marginRight: Sizes.fixPadding,
-        marginLeft:50,backgroundColor:'orange',
+        marginLeft: 50,
+        backgroundColor: 'orange',
     },
     hospitalLocationAndCallInfoWrapStyle: {
         marginTop: Sizes.fixPadding + 5.0,
@@ -353,6 +382,8 @@ const styles = StyleSheet.create({
         paddingLeft: Sizes.fixPadding * 2.0,
         paddingVertical: Sizes.fixPadding + 3.0,
         marginBottom: Sizes.fixPadding,
+        borderRadius: Sizes.fixPadding, 
+        elevation: 2,
     },
     searchFieldStyle: {
         height: 20.0,
@@ -365,6 +396,7 @@ const styles = StyleSheet.create({
         height: 40.0,
         borderRadius: Sizes.fixPadding - 3.0,
         alignItems: "center",
-        justifyContent: "center",margin:10
-      },
-})
+        justifyContent: "center",
+        margin: 10
+    },
+});

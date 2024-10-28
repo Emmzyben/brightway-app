@@ -1,11 +1,18 @@
-import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity } from 'react-native'
-import React, { useState } from 'react'
-import { Colors, Fonts, Sizes, CommonStyles } from '../../constants/styles'
+import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { Colors, Fonts, Sizes, CommonStyles } from '../../constants/styles';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import MyStatusBar from '../../components/myStatusBar';
 import DateTimePicker from '@react-native-community/datetimepicker';
-const SignupScreen1 = ({ navigation }) => {
+import { database } from "../../firebase/firebase";
+import { ref, set, get, child, push } from "firebase/database";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
+import Loader from '../../components/activityLoader';
 
+const SignupScreen1 = ({ navigation }) => {
+    const [loading, setLoading] = useState(false);
     const [firstName, setfirstName] = useState('');
     const [lastName, setlastName] = useState('');
     const [mobileNumber, setmobileNumber] = useState('');
@@ -20,15 +27,168 @@ const SignupScreen1 = ({ navigation }) => {
     const [securePasswrod, setsecurePasswrod] = useState(true);
     const [dob, setDob] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
-    
+    const [profilePicture, setProfilePicture] = useState(null);
+    const [isUploaded, setIsUploaded] = useState(false);
+
+    const pickImage = async (source) => {
+        let result;
+        if (source === 'camera') {
+            result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 1,
+            });
+        } else {
+            result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 1,
+            });
+        }
+
+        console.log('Image selection result:', result);
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const selectedImage = result.assets[0];
+            console.log('Selected image:', selectedImage);
+
+            setLoading(true); // Start loading
+
+            try {
+                const downloadURL = await uploadFile(selectedImage);
+                console.log('Image download URL:', downloadURL);
+
+                if (downloadURL) {
+                    setProfilePicture(downloadURL);
+                    setIsUploaded(true); // Change the upload status
+                } else {
+                    Alert.alert('Upload failed', 'Could not get download URL.');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                Alert.alert('Upload failed', 'An error occurred during the upload. Please try again.');
+            } finally {
+                setLoading(false); // Stop loading after upload attempt
+            }
+        }
+    };
+
+    function selectImage() {
+        Alert.alert("Select Image", "Choose a source", [
+            {
+                text: "Camera",
+                onPress: () => pickImage('camera'),
+            },
+            {
+                text: "Gallery",
+                onPress: () => pickImage('gallery'),
+            },
+            {
+                text: "Cancel",
+                style: "cancel",
+            },
+        ]);
+    }
+
+    const uploadFile = async (file) => {
+        if (!file || !file.uri) {
+            console.error('No file or file.uri provided');
+            throw new Error('No valid file selected');
+        }
+
+        try {
+            const response = await fetch(file.uri);
+            const blob = await response.blob();
+            const storage = getStorage();
+            const storagePath = storageRef(storage, `uploads/${file.uri.split('/').pop()}`); 
+
+            // Upload the file
+            const snapshot = await uploadBytes(storagePath, blob);
+            console.log('Uploaded a blob or file!', snapshot);
+
+            // Get the download URL
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            return downloadURL; 
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            throw error; // Rethrow the error for further handling
+        }
+    };
+
     const handleDateChange = (event, selectedDate) => {
         const currentDate = selectedDate || dob;
         setShowDatePicker(Platform.OS === 'ios');
         setDob(currentDate);
     };
+
+    const handleSignup = async () => {
+        console.log("Signup started");
+        setLoading(true);
     
-
-
+        // Validate input fields
+        if (!firstName || !lastName || !mobileNumber || !email || !address || !state || !city || !zip || !username || !password) {
+            Alert.alert('Error', 'All fields are required!');
+            setLoading(false); // Stop loading on validation failure
+            return;
+        }
+    
+        const userData = {
+            firstName,
+            lastName,
+            mobileNumber,
+            email: email.toLowerCase(), 
+            address,
+            state,
+            city,
+            zip,
+            username: username.toLowerCase(), 
+            password,
+            approved: "unapproved",
+            dob: dob.toISOString(),
+            usertype: 'user',
+            profile_picture: profilePicture,
+        };
+    
+        const dbRef = ref(database);
+    
+        try {
+            const snapshot = await get(child(dbRef, 'users_table'));
+            console.log("Users table snapshot retrieved:", snapshot);
+    
+            if (snapshot.exists()) {
+                const users = snapshot.val();
+                console.log("Users data retrieved:", users);
+                const existingEmail = Object.values(users).some(user => user.email === email.toLowerCase());
+                console.log("Existing email check:", existingEmail);
+                if (existingEmail) {
+                    Alert.alert('Registration Failed', 'Email already in use.');
+                    setLoading(false); // Stop loading if email already exists
+                    return; // Return early if email already exists
+                }
+            }
+    
+            // Create a new user entry in the database
+            const userRef = push(ref(database, 'users_table'));
+            await set(userRef, userData);
+            console.log("User data set in database:", userData);
+    
+            // Store user ID in AsyncStorage
+            const userId = userRef.key;
+            await AsyncStorage.setItem('userId', userId);
+            console.log("User ID stored in AsyncStorage:", userId);
+    
+            // Navigate to verification page
+            navigation.push('Verification', { mobileNumber, usertype });
+        } catch (error) {
+            Alert.alert('Signup failed', 'An error occurred during signup. Please try again.');
+            console.error('Signup error:', error); // Log the error for debugging
+        } finally {
+            setLoading(false); // Stop loading in the finally block
+        }
+    };
+    
     return (
         <View style={{ flex: 1, backgroundColor: Colors.whiteColor }}>
             <MyStatusBar />
@@ -47,9 +207,11 @@ const SignupScreen1 = ({ navigation }) => {
                     {zipCode()}
                     {Username()}
                     {passwordInfo()}
+                    {profilePictureUpload()}
                     {termsAndConditionInfo()}
                     {signupButton()}
                 </ScrollView>
+                <Loader isLoading={loading} />
             </View>
             {alreadyAccountInfo()}
         </View>
@@ -79,19 +241,36 @@ const SignupScreen1 = ({ navigation }) => {
         )
     }
 
+    function profilePictureUpload() {
+        return (
+            <TouchableOpacity onPress={selectImage} style={styles.imageUploadButton}>
+           
+                <Text style={{ ...Fonts.grayColor14Medium }}>
+                    {isUploaded ? "Uploaded" : "Upload Profile Picture"}
+                </Text>
+      
+        </TouchableOpacity>
+        
+        );
+    }
+    
+
     function signupButton() {
         return (
             <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => { navigation.push('Verification', { mobileNumber, usertype }) }} 
+                onPress={handleSignup}
                 style={styles.buttonStyle}
             >
-                <Text style={{ ...Fonts.whiteColor17Bold }}>
-                    Sign Up
-                </Text>
+               
+                    <Text style={{ ...Fonts.whiteColor17Bold }}>
+                        Sign Up
+                    </Text>
+      
             </TouchableOpacity>
-        )
+        );
     }
+    
 
     function termsAndConditionInfo() {
         return (
@@ -474,5 +653,14 @@ const styles = StyleSheet.create({
         borderRadius: Sizes.fixPadding - 8.0,
         alignItems: 'center',
         justifyContent: 'center',
-    }
+    },
+    imageUploadButton: {
+        marginHorizontal: Sizes.fixPadding * 2.0,
+        marginTop: Sizes.fixPadding * 2.0,
+        padding: 20,
+        borderRadius: 5,
+        alignItems: 'center',
+        borderWidth:1,backgroundColor: Colors.bodyBackColor,
+        borderColor:0,marginBottom:30
+    },
 })

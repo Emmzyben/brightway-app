@@ -1,12 +1,13 @@
 import { StyleSheet, Text, View, Image, TextInput, FlatList, ScrollView, Dimensions } from 'react-native'
-import React, { useRef, useState, useEffect } from 'react'
+import React, { useRef, useState, useEffect,useCallback} from 'react';
 import { Colors, Fonts, Sizes } from '../../constants/styles'
 import { showRating } from '../../components/showRatings';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import UpperTab1 from '../../components/upperTab1';
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 const { width } = Dimensions.get('window');
-
+import useFetchUserAppointments from '../../hooks/useFetchUpcomingtrips';
+import useFetchUserDetails from '../../hooks/useFetchUserDetails';
 
 
 
@@ -54,7 +55,40 @@ const pendingNotifications= [
 
 ];
 const DriverHome = ({ navigation }) => {
+    const { appointments } = useFetchUserAppointments();
+    const { userDetails, error } = useFetchUserDetails();
+    const [userInfo, setUserInfo] = useState({
+        firstName: '',
+        lastName: '',
+        mobileNumber: '',
+        email: '',
+        password: '',
+        services:'',
+        bio:'',
+        profile_picture:''
+    });
+    useEffect(() => {
+        if (userDetails) {
+            setUserInfo({
+                firstName: userDetails.firstName,
+                lastName: userDetails.lastName,
+                mobileNumber: userDetails.mobileNumber,
+                email: userDetails.email,
+                bio:userDetails.bio,
+                password: '',
+                services: userDetails.services,
+                profile_picture: userDetails.profile_picture,
+            });
+        }
+    }, [userDetails]);
 
+  
+    
+const upcomingAppointments = appointments.filter(
+  (item) => item.status === 'pending' || item.status === 'confirmed'
+);
+
+  
 
     return (
         <View style={{ flex: 1, backgroundColor: Colors.bodyBackColor }}>
@@ -82,14 +116,14 @@ const DriverHome = ({ navigation }) => {
                 style={styles.doctorInfoWrapStyle}
             >
                 <View style={{ ...styles.doctorImageBackgroundStyle, }}>
-                    <Image
-                        source={require('../../assets/images/users/user10.png')}
+                <Image
+                        source={{ uri: userInfo.profile_picture}}
                         style={styles.doctorImageStyle}
                     />
                 </View>
                 <View style={{ flex: 1, marginLeft: Sizes.fixPadding + 5.0 }}>
                     <Text numberOfLines={1} style={{ ...Fonts.blackColor17SemiBold }}>
-                       Robert sike
+                    {userInfo.firstName}  {userInfo.lastName} 
                     </Text>
                     <Text numberOfLines={1} style={{ marginVertical: Sizes.fixPadding - 5.0, ...Fonts.grayColor15Medium ,color:'green'}}>
                         Online
@@ -156,73 +190,92 @@ const DriverHome = ({ navigation }) => {
             </View>
         )
     }
+  
     function UpcomingTrips() {
-        const renderItem = ({ item }) => (
+        if (upcomingAppointments.length === 0) {
+            return noAppointmentsInfo('No Upcoming Trips');
+        }
+    
+        return (
+            <>
+                <View style={{ margin: Sizes.fixPadding * 2.0, flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ ...Fonts.blackColor18SemiBold, flex: 1 }}>
+                        Upcoming Trips
+                    </Text>
+                </View>
+    
+                <FlatList
+                    data={upcomingAppointments}
+                    keyExtractor={item => `${item.id}`}
+                    renderItem={renderItem}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingTop: Sizes.fixPadding }}
+                />
+            </>
+        );
+    }
+    function renderItem({ item }) {
+        return (
             <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => { navigation.push('DriverAppointmentDetailScreen') }}
+                onPress={() => { navigation.push('AppointmentDetail', { appointmentId: item.appointmentId }) }}
                 style={styles.hospitalInfoWrapStyle}
             >
-                <View style={{ flexDirection: 'row', alignItems: 'center', }}>
-                <View
-                style={{
-                  backgroundColor: "#F3E5F5",
-                  ...styles.notificationIconWrapStyle,
-                }}
-              >
-                <Ionicons
-                  name="timer"
-                  size={20}
-                  color='rgba(58, 155, 195, 0.80)'
-                />
-              </View>
-                    <View style={{ flex: 0.65, marginRight: Sizes.fixPadding - 5.0, }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View
+                        style={{
+                            backgroundColor: "#F3E5F5",
+                            ...styles.notificationIconWrapStyle,
+                        }}
+                    >
+                        <Ionicons
+                            name="notifications"
+                            size={20}
+                            color='rgba(58, 155, 195, 0.80)'
+                        />
+                    </View>
+                    <View style={{ flex: 0.65, marginRight: Sizes.fixPadding - 5.0 }}>
                         <Text numberOfLines={1} style={{ ...Fonts.blackColor16Medium }}>
-                            {item.providerName}
+                            {item.patient_firstName} {item.patient_lastName}
                         </Text>
                         <Text numberOfLines={1} style={{ marginTop: Sizes.fixPadding - 8.0, marginBottom: Sizes.fixPadding - 5.0, ...Fonts.grayColor14Medium }}>
-                            {item.booking}
+                            {item.date} {item.time}
                         </Text>
                         <Text numberOfLines={1} style={{ marginTop: Sizes.fixPadding - 8.0, marginBottom: Sizes.fixPadding - 5.0, ...Fonts.grayColor14Medium }}>
-                            {item.type}
+                           Status: {item.status}
                         </Text>
                     </View>
-                    <View style={{ flex: 0.35, }}>
-                        <ScrollView
-                            onPointerEnter={() => { }}
-                            horizontal showsHorizontalScrollIndicator={false}>
-                            {
-                                item.ProviderImage.map((image, index) => (
-                                    <Image
-                                        key={`${index}`}
-                                        source={image}
-                                        style={styles.hospitalImagesStyle}
-                                    />
-                                ))
-                            }
+                    <View style={{ flex: 0.35 }}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            <Image
+                                source={{ uri: item.patientProfilePicture}}
+                                style={styles.hospitalImagesStyle}
+                            />
                         </ScrollView>
                     </View>
                 </View>
-               
-               
             </TouchableOpacity>
-        )
+        );
+    }
+  
+    function noAppointmentsInfo(message) {
         return (
-            <View>
-                <View style={{ margin: Sizes.fixPadding * 2.0, flexDirection: 'row', alignItems: 'center', }}>
-                    <Text style={{ ...Fonts.blackColor18SemiBold, flex: 1, }}>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ margin: Sizes.fixPadding * 2.0, flexDirection: 'row', alignItems: 'center',marginBottom:30 }}>
+                    <Text style={{ ...Fonts.blackColor18SemiBold, flex: 1 }}>
                         Upcoming Trips
                     </Text>
-              </View>
-                <FlatList
-                    data={userList}
-                    keyExtractor={(item) => `${item.id}`}
-                    renderItem={renderItem}
-                    scrollEnabled={false}
-                    automaticallyAdjustKeyboardInsets={true}
+                </View>
+                <MaterialIcons
+                    name='event-note'
+                    color={Colors.lightGrayColor}
+                    size={40}
                 />
+                <Text style={{ marginTop: Sizes.fixPadding, ...Fonts.grayColor16SemiBold }}>
+                    {message}
+                </Text>
             </View>
-        )
+        );
     }
 
   
@@ -255,7 +308,7 @@ const styles = StyleSheet.create({
     hospitalImagesStyle: {
         alignSelf: 'center',
         width: width / 4.0,
-        height: 50.0,
+        height: 70.0,
         borderRadius: Sizes.fixPadding - 5.0,
         marginRight: Sizes.fixPadding,
     },

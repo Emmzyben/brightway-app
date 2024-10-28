@@ -4,41 +4,90 @@ import {
   View,
   Dimensions,
   ScrollView,
-  TextInput,
-  Image,
-  FlatList,
   TouchableOpacity,
-  Platform,
 } from "react-native";
-import React, { useState } from "react";
-import { MaterialIcons } from "@expo/vector-icons";
+import React, { useState, useEffect } from "react";
 import { Colors, Fonts, Sizes } from "../../constants/styles";
-import { showRating } from "../../components/showRatings";
-import CalendarStrip from "react-native-calendar-strip";
 import moment from "moment";
 import MyStatusBar from "../../components/myStatusBar";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import useCreateSchedule from "../../hooks/useCreateSchedule";
+import Loader from "../../components/activityLoader";
 
 const { width } = Dimensions.get("window");
 
-const appointmentTimes = [
-  "09:00 am",
-  "09:30 am",
-  "10:00 am",
-  "10:30 am",
-  "11:00 am",
-  "11:30 am",
-  "12:00 am",
-  "02:00 pm",
-  "02:30 pm",
-  "03:00 pm",
-  "03:30 pm",
-  "04:00 pm",
-];
-
 const ProviderSchedule = ({ navigation }) => {
-  const [selectedDate, setselectedDate] = useState(null);
-  const [selectedTimeIndex, setselectedTimeIndex] = useState(1);
-  const [reason, setreason] = useState("");
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedFromTime, setSelectedFromTime] = useState(null);
+  const [selectedToTime, setSelectedToTime] = useState(null);
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [isFromTimePickerVisible, setFromTimePickerVisibility] = useState(false);
+  const [isToTimePickerVisible, setToTimePickerVisibility] = useState(false);
+  const [userId, setUserId] = useState(null);
+
+  const { createSchedule, loading, error } = useCreateSchedule(); // Using the hook
+
+  useEffect(() => {
+    const getUserId = async () => {
+      const storedUserId = await AsyncStorage.getItem("userId");
+      setUserId(storedUserId);
+    };
+    getUserId();
+  }, []);
+
+  const showDatePicker = () => setDatePickerVisibility(true);
+  const hideDatePicker = () => setDatePickerVisibility(false);
+
+  const handleConfirmDate = (date) => {
+    setSelectedDate(moment(date).format("DD MMM YYYY"));
+    hideDatePicker();
+  };
+
+  const showFromTimePicker = () => setFromTimePickerVisibility(true);
+  const hideFromTimePicker = () => setFromTimePickerVisibility(false);
+
+  const handleConfirmFromTime = (time) => {
+    setSelectedFromTime(moment(time).format("hh:mm A"));
+    hideFromTimePicker();
+  };
+
+  const showToTimePicker = () => setToTimePickerVisibility(true);
+  const hideToTimePicker = () => setToTimePickerVisibility(false);
+
+  const handleConfirmToTime = (time) => {
+    setSelectedToTime(moment(time).format("hh:mm A"));
+    hideToTimePicker();
+  };
+
+  const handleSubmit = async () => {
+    if (selectedDate && selectedFromTime && selectedToTime && userId) {
+      // Validate that From time is before To time
+      if (moment(selectedFromTime, "hh:mm A").isBefore(moment(selectedToTime, "hh:mm A"))) {
+        const scheduleDetails = {
+          scheduleDate: selectedDate,
+          scheduleFromTime: selectedFromTime,
+          scheduleToTime: selectedToTime,
+          providerId: userId,
+        };
+
+        const success = await createSchedule(scheduleDetails);
+        if (success) {
+          // Reset fields after successful creation
+          setSelectedDate(null);
+          setSelectedFromTime(null);
+          setSelectedToTime(null);
+          navigation.navigate("Schedules"); // Use navigate instead of push
+        } else {
+          alert(error || "Error creating schedule");
+        }
+      } else {
+        alert("From time must be before To time.");
+      }
+    } else {
+      alert("Please fill all the fields.");
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bodyBackColor }}>
@@ -47,11 +96,12 @@ const ProviderSchedule = ({ navigation }) => {
         {header()}
         <ScrollView showsVerticalScrollIndicator={false} automaticallyAdjustKeyboardInsets={true}>
           {selectDate()}
-          {selectTime1()}
-          {selectTime2()}
+          {selectFromTime()}
+          {selectToTime()}
         </ScrollView>
       </View>
       {confirmButton()}
+      <Loader isLoading={loading} />
     </View>
   );
 
@@ -59,192 +109,99 @@ const ProviderSchedule = ({ navigation }) => {
     return (
       <TouchableOpacity
         activeOpacity={0.8}
-       
+        onPress={handleSubmit}
         style={styles.buttonStyle}
+        disabled={loading}
       >
-        <Text style={{ ...Fonts.whiteColor17Bold }}>Create Schedule</Text>
+        <Text style={{ ...Fonts.whiteColor17Bold }}>
+          {loading ? "Creating..." : "Create Schedule"}
+        </Text>
       </TouchableOpacity>
     );
   }
 
-
-
-  function selectTime1() {
-    const renderItem = ({ item, index }) => (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => {
-          setselectedTimeIndex(index);
-        }}
-        style={{
-          backgroundColor:
-            selectedTimeIndex == index
-              ? Colors.primaryColor
-              : Colors.bodyBackColor,
-          ...styles.timeWrapStyle,
-        }}
-      >
-        <Text
-          style={
-            selectedTimeIndex == index
-              ? { ...Fonts.whiteColor14Medium }
-              : { ...Fonts.blackColor14Medium }
-          }
-        >
-          {item}
-        </Text>
-      </TouchableOpacity>
-    );
+  function selectFromTime() {
     return (
-      <View
-        style={{
-          backgroundColor: Colors.whiteColor,
-          marginVertical: Sizes.fixPadding,
-          paddingVertical: Sizes.fixPadding * 2.0,
-        }}
-      >
-        <Text
-          style={{
-            ...Fonts.blackColor18SemiBold,
-            marginHorizontal: Sizes.fixPadding * 2.0,
-          }}
+      <View style={styles.timeContainer}>
+        <Text style={styles.timeTitle}>Available From</Text>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={showFromTimePicker}
+          style={styles.timeWrapStyle}
         >
-          Available From
-        </Text>
-        <FlatList
-          data={appointmentTimes}
-          keyExtractor={(index) => `${index}`}
-          renderItem={renderItem}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingLeft: Sizes.fixPadding * 2.0,
-            paddingTop: Sizes.fixPadding + 5.0,
-            paddingRight: Sizes.fixPadding,
-          }}
+          <Text style={selectedFromTime ? styles.timeText : styles.placeholderText}>
+            {selectedFromTime ? selectedFromTime : "Select From Time"}
+          </Text>
+        </TouchableOpacity>
+        <DateTimePickerModal
+          isVisible={isFromTimePickerVisible}
+          mode="time"
+          onConfirm={handleConfirmFromTime}
+          onCancel={hideFromTimePicker}
         />
       </View>
     );
   }
-  function selectTime2() {
-    const renderItem = ({ item, index }) => (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => {
-          setselectedTimeIndex(index);
-        }}
-        style={{
-          backgroundColor:
-            selectedTimeIndex == index
-              ? Colors.primaryColor
-              : Colors.bodyBackColor,
-          ...styles.timeWrapStyle,
-        }}
-      >
-        <Text
-          style={
-            selectedTimeIndex == index
-              ? { ...Fonts.whiteColor14Medium }
-              : { ...Fonts.blackColor14Medium }
-          }
-        >
-          {item}
-        </Text>
-      </TouchableOpacity>
-    );
+
+  function selectToTime() {
     return (
-      <View
-        style={{
-          backgroundColor: Colors.whiteColor,
-          marginVertical: Sizes.fixPadding,
-          paddingVertical: Sizes.fixPadding * 2.0,
-        }}
-      >
-        <Text
-          style={{
-            ...Fonts.blackColor18SemiBold,
-            marginHorizontal: Sizes.fixPadding * 2.0,
-          }}
+      <View style={styles.timeContainer}>
+        <Text style={styles.timeTitle}>To</Text>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={showToTimePicker}
+          style={styles.timeWrapStyle}
         >
-         To
-        </Text>
-        <FlatList
-          data={appointmentTimes}
-          keyExtractor={(index) => `${index}`}
-          renderItem={renderItem}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingLeft: Sizes.fixPadding * 2.0,
-            paddingTop: Sizes.fixPadding + 5.0,
-            paddingRight: Sizes.fixPadding,
-          }}
+          <Text style={selectedToTime ? styles.timeText : styles.placeholderText}>
+            {selectedToTime ? selectedToTime : "Select To Time"}
+          </Text>
+        </TouchableOpacity>
+        <DateTimePickerModal
+          isVisible={isToTimePickerVisible}
+          mode="time"
+          onConfirm={handleConfirmToTime}
+          onCancel={hideToTimePicker}
         />
       </View>
     );
   }
+
   function selectDate() {
     return (
-      <View
-        style={{
-          backgroundColor: Colors.whiteColor,
-          paddingVertical: Sizes.fixPadding * 2.0,
-        }}
-      >
-        <Text
-          style={{
-            marginHorizontal: Sizes.fixPadding * 2.0,
-            ...Fonts.blackColor18SemiBold,
-          }}
+      <View style={styles.dateContainer}>
+        <Text style={styles.dateTitle}>Select Date</Text>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={showDatePicker}
+          style={styles.dateWrapStyle}
         >
-          Select Date
-        </Text>
-        <CalendarStrip
-          style={{ height: 90 }}
-          highlightDateContainerStyle={{
-            backgroundColor: Colors.primaryColor,
-            borderRadius: Sizes.fixPadding - 5.0,
-          }}
-          calendarHeaderContainerStyle={{ marginVertical: Sizes.fixPadding }}
-          calendarHeaderStyle={{ ...Fonts.primaryColor14Bold }}
-          iconStyle={{ width: 0.0, height: 0.0 }}
-          dateNumberStyle={{ ...Fonts.blackColor14Medium }}
-          dateNameStyle={{ ...Fonts.grayColor12Medium }}
-          highlightDateNameStyle={{ ...Fonts.whiteColor12Medium, }}
-          highlightDateNumberStyle={{ ...Fonts.whiteColor14Medium, }}
-          useIsoWeekday={false}
-          scrollable={true}
-          upperCaseDays={false}
-          styleWeekend={true}
-          selectedDate={moment()}
-          onDateSelected={(date) => {
-            setselectedDate(date.format("DD MMM YYYY"));
-          }}
+          <Text style={selectedDate ? styles.dateText : styles.placeholderText}>
+            {selectedDate ? selectedDate : "Select Date"}
+          </Text>
+        </TouchableOpacity>
+        <DateTimePickerModal
+          isVisible={isDatePickerVisible}
+          mode="date"
+          onConfirm={handleConfirmDate}
+          onCancel={hideDatePicker}
         />
       </View>
     );
   }
-
-
 
   function header() {
     return (
       <View style={styles.headerWrapStyle}>
-        <Text
-          numberOfLines={1}
-          style={{ maxWidth: width - 70, ...Fonts.blackColor20Bold }}
-        >
-          Create Schedule
-        </Text>
-        <MaterialIcons
-          name="arrow-back"
-          size={24}
-          color={Colors.blackColor}
-          style={{ position: "absolute", left: 20.0 }}
-          onPress={() => {
-            navigation.pop();
-          }}
-        />
+        <View>
+          <Text numberOfLines={1} style={{ maxWidth: width - 70, ...Fonts.blackColor20Bold }}>
+            Create Schedule
+          </Text>
+        </View>
+        <View style={{marginTop:5}}>
+          <TouchableOpacity onPress={() => navigation.navigate("Schedules")}>
+            <Text style={{fontSize:15}}>All Schedules</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -255,36 +212,26 @@ export default ProviderSchedule;
 const styles = StyleSheet.create({
   headerWrapStyle: {
     backgroundColor: Colors.whiteColor,
-    alignItems: "center",
-    justifyContent: "center",
+    display: 'flex',flexDirection:'row',
+    justifyContent: "space-between",
     padding: Sizes.fixPadding * 2.0,
   },
-  doctorImageBackgroundStyle: {
-    borderRadius: Sizes.fixPadding - 5.0,
-    height: 110,
-    width: width / 3.5,
-    alignItems: "center",
-    backgroundColor: Colors.purpleColor,
+  dateContainer: {
+    padding: Sizes.fixPadding * 2.0,
   },
-  doctorImageStyle: {
-    width: width / 3.5 - 15.0,
-    height: "125%",
-    resizeMode: "stretch",
-    position: "absolute",
-    bottom: 0.0,
+  timeContainer: {
+    padding: Sizes.fixPadding * 2.0,
   },
-  doctorInfoWrapStyle: {
+  dateWrapStyle: {
     backgroundColor: Colors.whiteColor,
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: Sizes.fixPadding,
-    paddingHorizontal: Sizes.fixPadding * 2.0,
-    paddingTop: Sizes.fixPadding * 4.0,
-    paddingBottom: Sizes.fixPadding * 2.0,
+    padding: Sizes.fixPadding + 2.0,
+    marginTop: Sizes.fixPadding,
+    borderRadius: Sizes.fixPadding - 5.0,
   },
   timeWrapStyle: {
+    backgroundColor: Colors.whiteColor,
     padding: Sizes.fixPadding + 2.0,
-    marginRight: Sizes.fixPadding,
+    marginTop: Sizes.fixPadding,
     borderRadius: Sizes.fixPadding - 5.0,
   },
   buttonStyle: {
@@ -293,12 +240,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  apponitmentForField: {
-    backgroundColor: Colors.bodyBackColor,
-    padding: Sizes.fixPadding + 2.0,
-    borderRadius: Sizes.fixPadding - 5.0,
-    height: Platform.OS == "ios" ? 120 : null,
-    paddingTop:
-      Platform.OS == "ios" ? Sizes.fixPadding + 5.0 : Sizes.fixPadding,
+  timeTitle: {
+    ...Fonts.blackColor17Bold,
+    marginBottom: Sizes.fixPadding,
+  },
+  timeText: {
+    ...Fonts.blackColor15Regular,
+  },
+  placeholderText: {
+    ...Fonts.grayColor15Regular,
   },
 });

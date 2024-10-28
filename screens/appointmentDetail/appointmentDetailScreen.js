@@ -1,115 +1,194 @@
-import { StyleSheet, Text, View, Dimensions, Image, ScrollView, TouchableOpacity } from 'react-native'
-import React from 'react'
-import { MaterialIcons, FontAwesome } from '@expo/vector-icons';
+import { StyleSheet, Text, View, Dimensions, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Fonts, Sizes } from '../../constants/styles';
 import MyStatusBar from '../../components/myStatusBar';
+import useGetAppointmentDetails from '../../hooks/useGetAppointmentDetails';
+import useUpdateAppointmentStatus from '../../hooks/useUpdateAppointmentStatus';
+import Successfull from '../../components/successfull';
+import useCreateConversation from '../../hooks/useCreateConversation';
 
 const { width } = Dimensions.get('window');
 
-const AppointmentDetailScreen = ({ navigation }) => {
+const AppointmentDetailScreen = ({ navigation, route }) => {
+    const { appointmentId } = route.params; 
+    const { appointmentDetails, loading: loadingDetails, error: errorDetails } = useGetAppointmentDetails(appointmentId);
+    const { loading: loadingStatus, error: errorStatus, changeStatus } = useUpdateAppointmentStatus();
+    const [showSuccess, setShowSuccess] = useState(false);
+    const { createConversation, loading: loadingConversation, error } = useCreateConversation();
+
+    
+    const handleCancel = async () => {
+        try {
+            const success = await changeStatus(appointmentId, 'cancelled');
+            if (success) {
+                setShowSuccess(true); 
+            } else {
+                Alert.alert('Error', 'Failed to cancel the appointment'); 
+            }
+        } catch (error) {
+            console.error("Error in handleCancel:", error);
+        }
+    };
+
+    const handleCreateConversation = useCallback(async () => {
+        try {
+            const { providerId, providerFirstName, providerLastName, providerProfile_picture } = appointmentDetails;
+            
+            const result = await createConversation(providerId, providerFirstName, providerLastName, providerProfile_picture, "Initial message");
+    
+            if (result.success) {
+                const { conversationId, conversationData } = result;
+                const { participant1Id } = conversationData; 
+    
+                navigation.navigate('ChatWithDoctor', {
+                    conversationId,
+                    participant1Id,
+                    participant2Id: providerId,
+                    conversationData, 
+                });
+            } else {
+                console.log("Failed to create conversation");
+            }
+        } catch (error) {
+            console.error("Error in handleCreateConversation:", error);
+        }
+    }, [appointmentDetails, createConversation, navigation]);
+    
+    const renderChatButton = () => (
+        <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleCreateConversation}
+            style={{ backgroundColor: Colors.primaryColor, ...styles.buttonStyle }}
+            disabled={loadingConversation}
+        >
+            {loadingConversation ? (
+                <ActivityIndicator color={Colors.whiteColor} />
+            ) : (
+                <>
+                    <MaterialIcons name='chat' color={Colors.whiteColor} size={20} />
+                    <Text numberOfLines={1} style={{ marginLeft: Sizes.fixPadding + 5.0, ...Fonts.whiteColor17Bold }}>
+                        Chat
+                    </Text>
+                </>
+            )}
+        </TouchableOpacity>
+    );
+
+    const renderButtons = () => {
+        const appointmentStatus = appointmentDetails?.status; 
+
+        return (
+            <View style={{ flexDirection: 'row', borderTopColor: Colors.bodyBackColor, borderTopWidth: 1.0 }}>
+                {appointmentStatus === 'pending' && (
+                    <>
+                        <ButtonComponent 
+                            title="Cancel" 
+                            onPress={handleCancel} 
+                            loading={loadingStatus} 
+                            backgroundColor={Colors.redColor} 
+                        />
+                        {renderChatButton()}
+                    </>
+                )}
+
+                {appointmentStatus === 'cancelled' && (
+                    <>
+                        <ButtonComponent 
+                            title="Reschedule" 
+                            onPress={() => { navigation.push('DoctorDetail', { email: appointmentDetails?.providerEmail, username: appointmentDetails?.ProviderUsername }) }} 
+                            loading={loadingStatus} 
+                            backgroundColor="grey" 
+                        />
+                        {renderChatButton()}
+                    </>
+                )}
+
+                {appointmentStatus === 'confirmed' && (
+                    <>
+                        <ButtonComponent 
+                            title="Cancel" 
+                            onPress={handleCancel} 
+                            loading={loadingStatus} 
+                            backgroundColor={Colors.redColor} 
+                        />
+                        {renderChatButton()}
+                    </>
+                )}
+            </View>
+        );
+    };
+    const ButtonComponent = ({ title, onPress, loading, backgroundColor }) => (
+        <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onPress}
+            style={{ backgroundColor, ...styles.smallButtonStyle }}
+            disabled={loading} 
+        >
+            {loading ? (
+                <ActivityIndicator color={Colors.whiteColor} />
+            ) : (
+                <Text style={{ ...Fonts.whiteColor17Bold }}>{title}</Text>
+            )}
+        </TouchableOpacity>
+    );
+
+
     return (
         <View style={{ flex: 1, backgroundColor: Colors.bodyBackColor }}>
-            <MyStatusBar />
-            <View style={{ flex: 1, }}>
-                {header()}
-                <ScrollView contentContainerStyle={{ paddingBottom: Sizes.fixPadding, }} showsVerticalScrollIndicator={false}>
-                    {doctorInfo()}
-                    {appintmentDetail()}
-                </ScrollView>
-            </View>
-            {callAndChatButton()}
+        <MyStatusBar />
+        <View style={{ flex: 1 }}>
+            {header()}
+            <ScrollView contentContainerStyle={{ paddingBottom: Sizes.fixPadding }} showsVerticalScrollIndicator={false}>
+                {loadingDetails ? (
+                    <ActivityIndicator size="large" color={Colors.primaryColor} style={{ marginVertical: Sizes.fixPadding * 2 }} />
+                ) : errorDetails ? (
+                    <Text style={{ textAlign: 'center', color: Colors.redColor }}>
+                        An error occurred while fetching appointment details. Please try again later.
+                    </Text>
+                ) : (
+                    <>
+                        {doctorInfo()}
+                        {appointmentDetail()}
+                    </>
+                )}
+            </ScrollView>
         </View>
-    )
+        {showSuccess ? <Successfull /> : renderButtons()}
+    </View>
+    );
 
-    function callAndChatButton() {
+    function appointmentDetail() {
         return (
-            <View>
-                <View style={{ flexDirection: 'row', borderTopColor: Colors.bodyBackColor, borderTopWidth: 1.0, }}>
-                    {/* Confirm Button */}
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={() => { /* handle confirm logic */ }}
-                        style={{ backgroundColor: Colors.greenColor, ...styles.smallButtonStyle }}
-                    >
-                        <Text style={{ ...Fonts.whiteColor17Bold }}>
-                            Confirm
-                        </Text>
-                    </TouchableOpacity>
-
-                    {/* Cancel Button */}
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={() => { /* handle cancel logic */ }}
-                        style={{ backgroundColor:'grey', ...styles.smallButtonStyle }}
-                    >
-                        <Text style={{ ...Fonts.whiteColor17Bold }}>
-                        Reschedule
-                        </Text>
-                    </TouchableOpacity>
-
-                    {/* Delete Button */}
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={() => { /* handle delete logic */ }}
-                        style={{ backgroundColor: Colors.redColor, ...styles.smallButtonStyle }}
-                    >
-                        <Text style={{ ...Fonts.whiteColor17Bold }}>
-                           Cancel
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Chat Button */}
-                <View style={{ flexDirection: 'row', borderTopColor: Colors.bodyBackColor, borderTopWidth: 1.0, }}>
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={() => { navigation.push('ChatWithDoctor') }}
-                        style={{ backgroundColor: Colors.primaryColor, ...styles.buttonStyle }}
-                    >
-                        <MaterialIcons name='chat' color={Colors.whiteColor} size={20} />
-                        <Text numberOfLines={1} style={{ marginLeft: Sizes.fixPadding + 5.0, ...Fonts.whiteColor17Bold, }}>
-                            Chat
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        )
-    }
-
-    function appintmentDetail() {
-        return (
-            <View style={{ backgroundColor: Colors.whiteColor, padding: Sizes.fixPadding * 2.0, }}>
-                {appointmentDetailShort({ title: 'Appointment ID', value: '321456987', icon: 'medical-services' })}
+            <View style={{ backgroundColor: Colors.whiteColor, padding: Sizes.fixPadding * 2.0 }}>
+                {appointmentDetailShort({ title: 'Bio', value: appointmentDetails?.bio || 'N/A', icon: 'person-outline' })}
                 {divider()}
-                {appointmentDetailShort({ title: 'Appointment Date & Time', value: '12 Jan 2020 • 12:00 pm', icon: 'timer' })}
+                {appointmentDetailShort({ title: 'Appointment ID', value: appointmentDetails?.appointmentId || 'N/A', icon: 'medical-services' })}
                 {divider()}
-                {appointmentDetailShort({ title: 'Bio', value: 'Easy going and cheerful', icon: 'person-outline' })}
+                {appointmentDetailShort({ title: 'Appointment Date & Time', value: `${appointmentDetails?.bookDate || 'N/A'} • ${appointmentDetails?.bookTime || 'N/A'}`, icon: 'timer' })}
+                {divider()}
+                {appointmentDetailShort({ title: 'Appointment Status', value: `${appointmentDetails?.status || 'N/A'}`, icon: 'timer' })}
+           
             </View>
-        )
+        );
     }
-
- 
 
     function divider() {
         return (
             <View style={{ backgroundColor: Colors.bodyBackColor, height: 1.0, marginVertical: Sizes.fixPadding * 2.0 }} />
-        )
+        );
     }
 
     function appointmentDetailShort({ title, value, icon }) {
         return (
             <View>
-                <Text style={{ ...Fonts.blackColor16Medium }}>
-                    {title}
-                </Text>
+                <Text style={{ ...Fonts.blackColor16Medium }}>{title}</Text>
                 <View style={{ marginTop: Sizes.fixPadding, flexDirection: 'row', alignItems: 'center' }}>
                     <MaterialIcons name={icon} size={22} color={Colors.primaryColor} />
-                    <Text style={{ marginLeft: Sizes.fixPadding, flex: 1, ...Fonts.grayColor14Medium }}>
-                        {value}
-                    </Text>
+                    <Text style={{ marginLeft: Sizes.fixPadding, flex: 1, ...Fonts.grayColor14Medium }}>{value}</Text>
                 </View>
             </View>
-        )
+        );
     }
 
     function doctorInfo() {
@@ -119,22 +198,22 @@ const AppointmentDetailScreen = ({ navigation }) => {
                 onPress={() => { navigation.push('DoctorReviews') }}
                 style={styles.doctorInfoWrapStyle}
             >
-                <View style={{ ...styles.doctorImageBackgroundStyle, }}>
+                <View style={styles.doctorImageBackgroundStyle}>
                     <Image
-                        source={require('../../assets/images/doctors/doctor1.png')}
+                        source={appointmentDetails?.providerProfile_picture ? { uri: appointmentDetails.providerProfile_picture} : require('../../assets/images/doctors/doctor1.png')}
                         style={styles.doctorImageStyle}
                     />
                 </View>
                 <View style={{ flex: 1, marginLeft: Sizes.fixPadding + 5.0 }}>
                     <Text numberOfLines={1} style={{ ...Fonts.blackColor17SemiBold }}>
-                        Dr.	Ismail Sendi
+                        {appointmentDetails?.providerFirstName} {appointmentDetails?.providerLastName}
                     </Text>
                     <Text numberOfLines={1} style={{ marginVertical: Sizes.fixPadding - 5.0, ...Fonts.grayColor15Medium }}>
-                        Gastroenterologist
+                        {appointmentDetails?.service || 'N/A'}
                     </Text>
                 </View>
             </TouchableOpacity>
-        )
+        );
     }
 
     function header() {
@@ -145,11 +224,11 @@ const AppointmentDetailScreen = ({ navigation }) => {
                 </Text>
                 <MaterialIcons name="arrow-back" size={24} color={Colors.blackColor} style={{ position: 'absolute', left: 20.0 }} onPress={() => { navigation.pop() }} />
             </View>
-        )
+        );
     }
 }
 
-export default AppointmentDetailScreen
+export default AppointmentDetailScreen;
 
 const styles = StyleSheet.create({
     headerWrapStyle: {
@@ -166,11 +245,11 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.purpleColor,
     },
     doctorImageStyle: {
-        width: (width / 3.5) - 15.0,
-        height: '125%',
+        height: 110,
+        width: width / 3.5,
         resizeMode: 'stretch',
         position: 'absolute',
-        bottom: 0.0,
+        bottom: 0.0, borderRadius: Sizes.fixPadding - 5.0,
     },
     doctorInfoWrapStyle: {
         backgroundColor: Colors.whiteColor,
@@ -187,12 +266,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         padding: Sizes.fixPadding * 2.0,
-    },   smallButtonStyle: {
+        margin: 5,
+        borderRadius: 10,
+    },
+    smallButtonStyle: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: Sizes.fixPadding * 1.5,
-        marginHorizontal: Sizes.fixPadding / 2,
+        padding: Sizes.fixPadding * 2.0,
+        margin: 5,
+        borderRadius: 10,
     },
-})
+});

@@ -82,8 +82,12 @@ import DriversScreen from './screens/doctors/driversScreen';
 import RecordScreen from './screens/StaffScreens/recordScreen';
 import UserInfo from './components/userInfo';
 import UpperTab from './components/upperTab';
+import ProfileScreen from './screens/profile/profileScreen';
 import StaffAppointmentScreen from './screens/appointment/staffAppointmentScreen';
 import StaffAppointmentDetailScreen from './screens/appointmentDetail/staffappointmentDetailScreen';
+import AppointmentScreen from './screens/appointment/appointmentScreen';
+import SearchCategoryDetailScreen from './screens/categoryDetail/SearchCategoryDetailScreen';
+import Schedules from './screens/bookAppointment/schedules';
 ExpoSplashScreen.preventAutoHideAsync();
 
 LogBox.ignoreAllLogs()
@@ -188,13 +192,17 @@ function MyApp() {
             <Stack.Screen name="StaffHome" component={StaffHome} />
             <Stack.Screen name="DriverConversation" component={DriverConversation} />
             <Stack.Screen name="DriverAppointmentScreen" component={DriverAppointmentScreen} />
-            <Stack.Screen name="DriverAppointmentDetailScreen" component={StaffAppointmentDetailScreen} />
+            <Stack.Screen name="DriverAppointmentDetailScreen" component={DriverAppointmentDetailScreen} />
             <Stack.Screen name="StaffAppointmentScreen" component={StaffAppointmentScreen} />
-            <Stack.Screen name="StaffAppointmentDetailScreen" component={DriverAppointmentDetailScreen} />
+            <Stack.Screen name="StaffAppointmentDetailScreen" component={StaffAppointmentDetailScreen} />
             <Stack.Screen name="BookDriver" component={BookDriver} />
             <Stack.Screen name="RecordScreen" component={RecordScreen} />
+            <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
             <Stack.Screen name="UserInfo" component={UserInfo} />
             <Stack.Screen name="UpperTab" component={UpperTab} />
+            <Stack.Screen name="AppointmentScreen" component={AppointmentScreen} />
+            <Stack.Screen name="SearchCategoryDetailScreen" component={SearchCategoryDetailScreen} />
+            <Stack.Screen name="Schedules" component={Schedules} />
           </Stack.Navigator>
         </UserProvider>
       </NavigationContainer>

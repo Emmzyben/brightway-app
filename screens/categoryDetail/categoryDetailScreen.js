@@ -1,159 +1,105 @@
-import { StyleSheet, Text, View, TouchableOpacity, Image, FlatList, ScrollView, Dimensions } from 'react-native'
-import React, { useState } from 'react'
-import { Colors, Fonts, Sizes } from '../../constants/styles'
+import { StyleSheet, Text, View, TouchableOpacity, Image, FlatList, Dimensions, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { Colors, Fonts, Sizes } from '../../constants/styles';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Menu } from 'react-native-material-menu';
-import { showRating } from '../../components/showRatings';
 import MyStatusBar from '../../components/myStatusBar';
+import useSearchProvidersByService from '../../hooks/useSearchProvidersByService';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
+const CategoryDetailScreen = ({ navigation, route }) => {
+    const { item: service } = route.params; 
+    const { providers, loading, error } = useSearchProvidersByService(service); 
 
-
-const doctorsList = [
-    {
-        id: '1',
-        doctorImage: require('../../assets/images/doctors/doctor1.png'),
-        doctorName: 'Dr. Ismail Sendi',
-        rating: 4.0,
-        ratingCount: 152,
-        serviceName: 'Doctor',
-          
-        bgColor: Colors.purpleColor,
-    },
-    {
-        id: '2',
-        doctorImage: require('../../assets/images/doctors/doctor2.png'),
-        doctorName: 'Dr. Barry George',
-        rating: 4.0,
-        ratingCount: 152,
-        serviceName: 'Nurse',
-          
-        bgColor: Colors.blueColor,
-    },
-    {
-        id: '3',
-        doctorImage: require('../../assets/images/doctors/doctor3.png'),
-        doctorName: 'Dr. Carol Pollack',
-        rating: 4.0,
-        ratingCount: 152,
-        serviceName: 'Doctor',
-          
-        bgColor: Colors.cyanColor,
-    },
-    {
-        id: '4',
-        doctorImage: require('../../assets/images/doctors/doctor4.png'),
-        doctorName: 'Dr. Howard Axe',
-        rating: 4.0,
-        ratingCount: 152,
-        serviceName: 'Nurse',
-          
-        bgColor: Colors.parrotColor,
-    },
-    {
-        id: '5',
-        doctorImage: require('../../assets/images/doctors/doctor5.png'),
-        doctorName: 'Dr. Sally Amsel',
-        rating: 4.0,
-        ratingCount: 152,
-        serviceName: 'Doctor',
-          
-        bgColor: Colors.greenColor,
-    },
-    {
-        id: '6',
-        doctorImage: require('../../assets/images/doctors/doctor6.png'),
-        doctorName: 'Dr. Jean Bocage',
-        rating: 4.0,
-        ratingCount: 152,
-        serviceName: 'Nurse',
-          
-        bgColor: Colors.yellowColor,
-    },
-    {
-        id: '7',
-        doctorImage: require('../../assets/images/doctors/doctor7.png'),
-        doctorName: 'Dr. Don Doman',
-        rating: 4.0,
-        ratingCount: 152,
-        serviceName: 'Doctor',
-          
-        bgColor: Colors.pitchColor,
-    },
-];
-
-const CategoryDetailScreen = ({ navigation }) => {
-
-  
     return (
         <View style={{ flex: 1, backgroundColor: Colors.bodyBackColor }}>
             <MyStatusBar />
-            <View style={{ flex: 1, }}>
+            <View style={{ flex: 1 }}>
                 {header()}
                 {nearestDoctorsInfo()}
             </View>
         </View>
-    )
+    );
 
     function nearestDoctorsInfo() {
+        if (loading) {
+            return <ActivityIndicator size="large" style={{ marginTop: 20 }} />;
+        }
+
+        if (error) {
+            return <Text style={{ textAlign: 'center', marginTop: 20 }}>{error}</Text>;
+        }
+
+        if (!providers.length) {
+            return <Text style={{ textAlign: 'center', marginTop: 20 }}>No providers found for this category.</Text>;
+        }
+
         const renderItem = ({ item }) => (
             <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => { navigation.push('DoctorDetail') }}
+                onPress={() => { navigation.push('DoctorDetail', { email: item.email, username: item.username }) }} // Pass both email and phone
                 style={styles.docorInfoWrapStyle}
             >
-                <View style={{ backgroundColor: item.bgColor, ...styles.doctorImageBackgroundStyle, }}>
+                <View style={{ backgroundColor: Colors.lightGrayColor, ...styles.doctorImageBackgroundStyle }}>
                     <Image
-                        source={item.doctorImage}
+                           source={item?.profile_picture ? { uri: item.profile_picture } : require('../../assets/images/user.png')}
+                      
                         style={styles.doctorImageStyle}
                     />
                 </View>
-                <View style={{ flex: 1, marginLeft: Sizes.fixPadding + 2.0, }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', }}>
+                <View style={{ flex: 1, marginLeft: Sizes.fixPadding + 2.0 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text numberOfLines={1} style={{ flex: 1, ...Fonts.blackColor16Medium }}>
-                            {item.doctorName}
+                            {item.firstName} {item.lastName}
                         </Text>
-                        <View style={{ marginLeft: Sizes.fixPadding - 5.0, flexDirection: 'row', alignItems: 'center' }}>
-                            {showRating({ number: item.rating })}
-                            <Text style={{ marginLeft: Sizes.fixPadding - 7.0, ...Fonts.grayColor11SemiBold }}>
-                                ({item.ratingCount})
-                            </Text>
-                        </View>
                     </View>
                     <Text style={{ marginBottom: Sizes.fixPadding - 2.0, marginTop: Sizes.fixPadding - 7.0, ...Fonts.grayColor14Medium }}>
-                        {item.serviceName}
+                        {item.services} 
                     </Text>
-                  
                 </View>
             </TouchableOpacity>
-        )
+        );
+        
+
         return (
             <FlatList
-                data={doctorsList}
-                keyExtractor={(item) => `${item.id}`}
+                data={providers} // Use the providers array from the hook
+                keyExtractor={(item, index) => `${index}`}
                 renderItem={renderItem}
                 showsVerticalScrollIndicator={false}
-               
             />
-        )
+        );
     }
 
+   
     function header() {
         return (
-            <View style={{ backgroundColor: Colors.whiteColor, alignItems: 'center', padding: Sizes.fixPadding * 2.0, }}>
-                <Text style={{ ...Fonts.blackColor16Medium }}>
-                    Providers for this Category
-                </Text>
-             
+            <View style={styles.headerWrapStyle}>
+                <MaterialIcons name="arrow-back" size={24} color={Colors.blackColor} onPress={() => { navigation.pop() }} />
+                <Text> Providers for {service}</Text>
+                <MaterialIcons
+                    size={24}
+                    color={Colors.blackColor}
+                    onPress={() => {
+                        setinSave(!inSave);
+                        setshowSnackBar(true);
+             }}
+                />
             </View>
-        )
+        );
     }
-}
+};
 
-export default CategoryDetailScreen
+export default CategoryDetailScreen;
 
 const styles = StyleSheet.create({
+    headerWrapStyle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: Colors.whiteColor,
+        padding: Sizes.fixPadding * 2.0,
+    },
     docorInfoWrapStyle: {
         backgroundColor: Colors.whiteColor,
         paddingHorizontal: Sizes.fixPadding * 2.0,
@@ -161,7 +107,7 @@ const styles = StyleSheet.create({
         paddingTop: Sizes.fixPadding * 2.0,
         marginBottom: Sizes.fixPadding,
         flexDirection: 'row',
-        alignItems: 'center'
+        alignItems: 'center',
     },
     doctorImageBackgroundStyle: {
         borderRadius: Sizes.fixPadding - 5.0,
@@ -170,10 +116,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     doctorImageStyle: {
-        width: (width / 4.7) - 15.0,
-        height: '115%',
+       height: width / 4.5,
+        width: width / 4.7,
         resizeMode: 'stretch',
         position: 'absolute',
         bottom: 0.0,
-    }
-})
+        borderRadius: Sizes.fixPadding - 5.0,
+    },
+});

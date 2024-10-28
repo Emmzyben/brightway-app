@@ -16,8 +16,8 @@ import MyStatusBar from "../../components/myStatusBar";
 const { width } = Dimensions.get("window");
 
 const ContactusScreen = ({ navigation }) => {
-  const [fullName, setfullName] = useState("Samantha Smith");
-  const [email, setemail] = useState("samanthasmith@gmail.com");
+  const [fullName, setfullName] = useState("Enter full name");
+  const [email, setemail] = useState("Enter email");
   const [message, setmessage] = useState("");
 
   return (
@@ -171,7 +171,7 @@ const ContactusScreen = ({ navigation }) => {
               ...Fonts.grayColor16Medium,
             }}
           >
-            +1 589-896-896
+             +1 (832) 883-9390
           </Text>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -183,7 +183,7 @@ const ContactusScreen = ({ navigation }) => {
               ...Fonts.grayColor16Medium,
             }}
           >
-            doctorops123@gmail.com
+           brightwaydaycare@gmail.com
           </Text>
         </View>
       </View>

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "RN DoctorOps User App",
-    "slug": "rn-DoctorOpsUserApp",
+    "name": "Brightway",
+    "slug": "Brightway",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -13,14 +13,14 @@
       "backgroundColor": "#fff"
     },
     "ios": {
-      "bundleIdentifier": "com.render.rndoctoropsuserapp",
+      "bundleIdentifier": "com.render.Brightway",
       "supportsTablet": false
     },
     "android": {
-      "package": "com.render.rndoctoropsuserapp",
+      "package": "com.render.Brightway",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/buildLogo.png",
         "backgroundColor": "#ffffff"
       },
       "config": {
@@ -40,6 +40,11 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5cab72db-ae6a-4c58-a8e0-645afd3f9f69"
+      }
     }
   }
 }

@@ -19,7 +19,7 @@ const { width } = Dimensions.get("window");
 const DeliverySuccessScreen = ({ navigation }) => {
 
   const backAction = () => {
-    navigation.navigate("Home");
+    navigation.navigate("BottomTabBar");
     return true;
   };
 
@@ -50,11 +50,11 @@ const DeliverySuccessScreen = ({ navigation }) => {
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={() => {
-          navigation.navigate("Home");
+          navigation.navigate("BottomTabBar");
         }}
         style={styles.buttonStyle}
       >
-        <Text style={{ ...Fonts.whiteColor17Bold }}>Back to Home</Text>
+        <Text style={{ ...Fonts.whiteColor17Bold }}>View Bookings</Text>
       </TouchableOpacity>
     );
   }
@@ -67,7 +67,7 @@ const DeliverySuccessScreen = ({ navigation }) => {
           contentContainerStyle={{ flexGrow: 1, justifyContent: "center", alignItems: 'center' }}
         >
           <Image
-            source={require("../../assets/images/deliverySuccess.png")}
+            source={require("../../assets/images/bookingSuccessBg.png")}
             style={{
               width: "100%",
               height: width / 1.9,
@@ -80,46 +80,17 @@ const DeliverySuccessScreen = ({ navigation }) => {
               ...Fonts.primaryColor14SemiBold,
             }}
           >
-            Order Delivered Successfully !!
+            Appointment Booked Successfully !!
           </Text>
           <Text
             style={{
               marginTop: Sizes.fixPadding - 5.0,
               ...Fonts.grayColor14Medium,
-            }}
+          }}
           >
-            Thank you for deliver safely & on time.
+           You have booked this provider successfully
           </Text>
-          <View
-            style={{ marginTop: Sizes.fixPadding * 2.5, flexDirection: "row" }}
-          >
-            <Text
-              numberOfLines={1}
-              onPress={() => {
-                navigation.push("OrderInfo");
-              }}
-              style={{
-                flex: 1,
-                textAlign: "center",
-                ...Fonts.primaryColor14Bold,
-              }}
-            >
-              View Order Info
-            </Text>
-            <Text
-              onPress={() => {
-                navigation.push("Wallet");
-              }}
-              numberOfLines={1}
-              style={{
-                flex: 1,
-                textAlign: "center",
-                ...Fonts.primaryColor14Bold,
-              }}
-            >
-              View Earnings
-            </Text>
-          </View>
+        
         </ScrollView>
       </View>
     );
@@ -128,7 +99,7 @@ const DeliverySuccessScreen = ({ navigation }) => {
   function header() {
     return (
       <Text numberOfLines={1} style={styles.headerTextStyle}>
-        Delivered Successfully!
+       Booking Successfull!
       </Text>
     );
   }

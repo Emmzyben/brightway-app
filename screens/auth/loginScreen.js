@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Platform,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import React, { useState, useCallback } from "react";
 import { Colors, Fonts, Sizes, CommonStyles } from "../../constants/styles";
@@ -53,6 +54,7 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState("");
   const [securePassword, setSecurePassword] = useState(true);
   const [rememberPwd, setRememberPwd] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!userNameOrEmail || !password) {
@@ -61,11 +63,14 @@ const LoginScreen = ({ navigation }) => {
     }
 
     try {
-      await login(userNameOrEmail, password); // Use login function from UserContext
+      setLoading(true); 
+      await login(userNameOrEmail.toLowerCase(), password);
     } catch (error) {
       Alert.alert("Login Error", "Invalid username, email or password.");
       console.log("Login failed", error);
-    }
+    }  finally {
+      setLoading(false); 
+  }
   };
 
   return (
@@ -117,7 +122,12 @@ const LoginScreen = ({ navigation }) => {
         onPress={handleLogin} // Trigger login on button press
         style={styles.buttonStyle}
       >
-        <Text style={{ ...Fonts.whiteColor17Bold }}>Sign In</Text>
+      {loading ? (
+                    <ActivityIndicator size="large" color="#fff" />
+                ) : (
+                  <Text style={{ ...Fonts.whiteColor17Bold }}>Sign In</Text>
+                )}
+        
       </TouchableOpacity>
     );
   }

@@ -16,17 +16,30 @@ import Conversation from "../screens/conversations/conversation";
 import ProfileScreen from "../screens/profile/profileScreen";
 import { Fontisto, MaterialIcons, Ionicons } from "@expo/vector-icons";
 import MyStatusBar from "./myStatusBar";
+import Loader from '../components/activityLoader'
 
 const Tab = createBottomTabNavigator();
 
 const BottomTabBarScreen = ({ navigation }) => {
+  const [loading, setLoading] = useState(true); 
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      const timer = setTimeout(() => {
+        setLoading(false); 
+      }, 1000); 
+
+      return () => clearTimeout(timer);
+    }, [])
+  );
+
   const backAction = () => {
     if (Platform.OS == "ios") {
       navigation.addListener("beforeRemove", (e) => {
         e.preventDefault();
       });
     } else {
-      backClickCount == 1 ? BackHandler.exitApp() : _spring();
+      backClickCount === 1 ? BackHandler.exitApp() : _spring();
       return true;
     }
   };
@@ -54,6 +67,7 @@ const BottomTabBarScreen = ({ navigation }) => {
   return (
     <View style={{ flex: 1 }}>
       <MyStatusBar />
+    <Loader isLoading={loading} /> 
       <Tab.Navigator
         screenOptions={{
           tabBarHideOnKeyboard: true,
@@ -185,7 +199,7 @@ const BottomTabBarScreen = ({ navigation }) => {
   );
 
   function exitInfo() {
-    return backClickCount == 1 ? (
+    return backClickCount === 1 ? (
       <View style={styles.exitWrapStyle}>
         <Text style={{ ...Fonts.whiteColor13Regular }}>
           Press back once again to exit
@@ -216,7 +230,7 @@ const styles = StyleSheet.create({
     height: 70.0,
     elevation: 3.0,
     borderTopColor: '#ececec',
-    borderTopWidth: Platform.OS == 'ios' ? 0 : 1,
+    borderTopWidth: Platform.OS === 'ios' ? 0 : 1,
     backgroundColor: Colors.whiteColor,
     shadowColor: Colors.blackColor,
     shadowOpacity: 0.09,

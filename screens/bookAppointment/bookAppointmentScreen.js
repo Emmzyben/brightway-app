@@ -6,39 +6,79 @@ import {
   ScrollView,
   TextInput,
   Image,
-  FlatList,
   TouchableOpacity,
-  Platform,
 } from "react-native";
 import React, { useState } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Colors, Fonts, Sizes } from "../../constants/styles";
-import { showRating } from "../../components/showRatings";
-import CalendarStrip from "react-native-calendar-strip";
-import moment from "moment";
 import MyStatusBar from "../../components/myStatusBar";
+import useFetchUserByEmailAndUsername from '../../hooks/useFetchUserByEmailAndUsername';
+import useBookProvider from "../../hooks/useBookProvider";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+import moment from "moment";
 
 const { width } = Dimensions.get("window");
 
-const appointmentTimes = [
-  "09:00 am",
-  "09:30 am",
-  "10:00 am",
-  "10:30 am",
-  "11:00 am",
-  "11:30 am",
-  "12:00 am",
-  "02:00 pm",
-  "02:30 pm",
-  "03:00 pm",
-  "03:30 pm",
-  "04:00 pm",
-];
+const BookAppointmentScreen = ({ navigation, route }) => {
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedTime, setSelectedTime] = useState(null);
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
+  const [reason, setReason] = useState("");
+  const { email, username } = route.params; 
+  const { user, loading: userLoading, error: userError } = useFetchUserByEmailAndUsername(email, username);
+  const { bookAppointment, loading: bookingLoading, error: bookingError } = useBookProvider();
 
-const BookAppointmentScreen = ({ navigation }) => {
-  const [selectedDate, setselectedDate] = useState(null);
-  const [selectedTimeIndex, setselectedTimeIndex] = useState(1);
-  const [reason, setreason] = useState("");
+  const showDatePicker = () => {
+    setDatePickerVisibility(true);
+  };
+
+  const hideDatePicker = () => {
+    setDatePickerVisibility(false);
+  };
+
+  const handleConfirmDate = (date) => {
+    setSelectedDate(moment(date).format("DD MMM YYYY"));
+    hideDatePicker();
+  };
+
+  const showTimePicker = () => {
+    setTimePickerVisibility(true);
+  };
+
+  const hideTimePicker = () => {
+    setTimePickerVisibility(false);
+  };
+
+  const handleConfirmTime = (time) => {
+    setSelectedTime(moment(time).format("hh:mm A"));
+    hideTimePicker();
+  };
+
+  const handleSubmit = async () => {
+    if (selectedDate && selectedTime && reason) {
+      const appointmentDetails = {
+        providerEmail:email,
+        ProviderUsername:username,
+        bookDate: selectedDate,
+        bookTime: selectedTime,
+        reason,
+        service:user.services,
+        providerProfile_picture:user.profile_picture,
+        providerFirstName: user.firstName,
+        providerLastName:user.lastName
+      };
+
+      const success = await bookAppointment(appointmentDetails); 
+      if (success) {
+        navigation.push("DeliverySuccess");
+      } else {
+        console.error(bookingError);
+      }
+    } else {
+      alert("Please fill all the fields.");
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bodyBackColor }}>
@@ -53,6 +93,24 @@ const BookAppointmentScreen = ({ navigation }) => {
         </ScrollView>
       </View>
       {confirmButton()}
+
+      {/* Date Picker */}
+      <DateTimePickerModal
+        isVisible={isDatePickerVisible}
+        mode="date"
+        onConfirm={handleConfirmDate}
+        onCancel={hideDatePicker}
+        date={new Date()} // Current date
+      />
+
+      {/* Time Picker */}
+      <DateTimePickerModal
+        isVisible={isTimePickerVisible}
+        mode="time"
+        onConfirm={handleConfirmTime}
+        onCancel={hideTimePicker}
+        date={new Date()} // Current time
+      />
     </View>
   );
 
@@ -60,45 +118,30 @@ const BookAppointmentScreen = ({ navigation }) => {
     return (
       <TouchableOpacity
         activeOpacity={0.8}
-        onPress={() => {
-          navigation.push("BookAppointmentSuccess");
-        }}
+        onPress={handleSubmit} // Call the handleSubmit function on press
         style={styles.buttonStyle}
       >
-        <Text style={{ ...Fonts.whiteColor17Bold }}>Confirm Appointment</Text>
+        <Text style={{ ...Fonts.whiteColor17Bold }}>
+          {bookingLoading ? "Booking..." : "Confirm Appointment"} {/* Show loading text */}
+        </Text>
       </TouchableOpacity>
     );
   }
 
   function appointmentReasonInfo() {
     return (
-      <View
-        style={{
-          backgroundColor: Colors.whiteColor,
-          padding: Sizes.fixPadding * 2.0,
-          marginBottom: Sizes.fixPadding,
-        }}
-      >
-        <Text
-          style={{
-            marginBottom: Sizes.fixPadding + 5.0,
-            ...Fonts.blackColor18SemiBold,
-          }}
-        >
-          Appointment for
-        </Text>
+      <View style={styles.appointmentInfoContainer}>
+        <Text style={styles.appointmentInfoTitle}>Appointment for</Text>
         <TextInput
           placeholder="e.g Heart pain, Body ache, etc."
           placeholderTextColor={Colors.grayColor}
-          style={styles.apponitmentForField}
+          style={styles.appointmentForField}
           cursorColor={Colors.primaryColor}
           selectionColor={Colors.primaryColor}
           numberOfLines={4}
           multiline
           value={reason}
-          onChangeText={(value) => {
-            setreason(value);
-          }}
+          onChangeText={setReason}
           textAlignVertical="top"
         />
       </View>
@@ -106,101 +149,35 @@ const BookAppointmentScreen = ({ navigation }) => {
   }
 
   function selectTime() {
-    const renderItem = ({ item, index }) => (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => {
-          setselectedTimeIndex(index);
-        }}
-        style={{
-          backgroundColor:
-            selectedTimeIndex == index
-              ? Colors.primaryColor
-              : Colors.bodyBackColor,
-          ...styles.timeWrapStyle,
-        }}
-      >
-        <Text
-          style={
-            selectedTimeIndex == index
-              ? { ...Fonts.whiteColor14Medium }
-              : { ...Fonts.blackColor14Medium }
-          }
-        >
-          {item}
-        </Text>
-      </TouchableOpacity>
-    );
     return (
-      <View
-        style={{
-          backgroundColor: Colors.whiteColor,
-          marginVertical: Sizes.fixPadding,
-          paddingVertical: Sizes.fixPadding * 2.0,
-        }}
-      >
-        <Text
-          style={{
-            ...Fonts.blackColor18SemiBold,
-            marginHorizontal: Sizes.fixPadding * 2.0,
-          }}
+      <View style={styles.timeContainer}>
+        <Text style={styles.timeTitle}>Select Appointment Time</Text>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={showTimePicker}
+          style={styles.timeWrapStyle}
         >
-          Select Appointment Time
-        </Text>
-        <FlatList
-          data={appointmentTimes}
-          keyExtractor={(index) => `${index}`}
-          renderItem={renderItem}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingLeft: Sizes.fixPadding * 2.0,
-            paddingTop: Sizes.fixPadding + 5.0,
-            paddingRight: Sizes.fixPadding,
-          }}
-        />
+          <Text style={selectedTime ? styles.timeText : styles.placeholderText}>
+            {selectedTime ? selectedTime : "Select Time"}
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   function selectDate() {
     return (
-      <View
-        style={{
-          backgroundColor: Colors.whiteColor,
-          paddingVertical: Sizes.fixPadding * 2.0,
-        }}
-      >
-        <Text
-          style={{
-            marginHorizontal: Sizes.fixPadding * 2.0,
-            ...Fonts.blackColor18SemiBold,
-          }}
+      <View style={styles.dateContainer}>
+        <Text style={styles.dateTitle}>Select Date</Text>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={showDatePicker}
+          style={styles.dateWrapStyle}
         >
-          Select Date
-        </Text>
-        <CalendarStrip
-          style={{ height: 90 }}
-          highlightDateContainerStyle={{
-            backgroundColor: Colors.primaryColor,
-            borderRadius: Sizes.fixPadding - 5.0,
-          }}
-          calendarHeaderContainerStyle={{ marginVertical: Sizes.fixPadding }}
-          calendarHeaderStyle={{ ...Fonts.primaryColor14Bold }}
-          iconStyle={{ width: 0.0, height: 0.0 }}
-          dateNumberStyle={{ ...Fonts.blackColor14Medium }}
-          dateNameStyle={{ ...Fonts.grayColor12Medium }}
-          highlightDateNameStyle={{ ...Fonts.whiteColor12Medium, }}
-          highlightDateNumberStyle={{ ...Fonts.whiteColor14Medium, }}
-          useIsoWeekday={false}
-          scrollable={true}
-          upperCaseDays={false}
-          styleWeekend={true}
-          selectedDate={moment()}
-          onDateSelected={(date) => {
-            setselectedDate(date.format("DD MMM YYYY"));
-          }}
-        />
+          <Text style={selectedDate ? styles.dateText : styles.placeholderText}>
+            {selectedDate ? selectedDate : "Select Date"}
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -209,40 +186,21 @@ const BookAppointmentScreen = ({ navigation }) => {
     return (
       <TouchableOpacity
         activeOpacity={0.8}
-        // onPress={() => {
-        //   navigation.push("DoctorReviews");
-        // }}
         style={styles.doctorInfoWrapStyle}
       >
-        <View style={{ ...styles.doctorImageBackgroundStyle }}>
+        <View style={styles.doctorImageBackgroundStyle}>
           <Image
-            source={require("../../assets/images/doctors/doctor1.png")}
+            source={user?.profile_picture ? { uri: user.profile_picture } : require('../../assets/images/user.png')}
             style={styles.doctorImageStyle}
           />
         </View>
-        <View style={{ flex: 1, marginLeft: Sizes.fixPadding + 5.0 }}>
-          <Text numberOfLines={1} style={{ ...Fonts.blackColor17SemiBold }}>
-            Dr. Ismail Sendi
+        <View style={styles.doctorDetails}>
+          <Text numberOfLines={1} style={styles.doctorName}>
+            {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : 'No name available'}
           </Text>
-          <Text
-            numberOfLines={1}
-            style={{
-              marginVertical: Sizes.fixPadding - 5.0,
-              ...Fonts.grayColor15Medium,
-            }}
-          >
-            Gastroenterologist 
+          <Text numberOfLines={1} style={styles.doctorService}>
+            {user?.services || 'No services available'}
           </Text>
-          <View
-            style={{
-              marginTop: Sizes.fixPadding - 8.0,
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
-            {showRating({ number: 4.0 })}
-           
-          </View>
         </View>
       </TouchableOpacity>
     );
@@ -282,15 +240,16 @@ const styles = StyleSheet.create({
   },
   doctorImageBackgroundStyle: {
     borderRadius: Sizes.fixPadding - 5.0,
-    height: 110,
+    height: 125,
     width: width / 3.5,
     alignItems: "center",
     backgroundColor: Colors.purpleColor,
   },
   doctorImageStyle: {
-    width: width / 3.5 - 15.0,
-    height: "125%",
-    resizeMode: "stretch",
+    borderRadius: Sizes.fixPadding - 5.0,
+    height: 125,
+    width: width / 3.5,
+    resizeMode: "fill",
     position: "absolute",
     bottom: 0.0,
   },
@@ -303,23 +262,69 @@ const styles = StyleSheet.create({
     paddingTop: Sizes.fixPadding * 4.0,
     paddingBottom: Sizes.fixPadding * 2.0,
   },
+  dateWrapStyle: {
+    paddingVertical: Sizes.fixPadding * 2.0,
+    marginHorizontal: Sizes.fixPadding * 2.0,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.grayColor,
+  },
   timeWrapStyle: {
-    padding: Sizes.fixPadding + 2.0,
-    marginRight: Sizes.fixPadding,
-    borderRadius: Sizes.fixPadding - 5.0,
+    paddingVertical: Sizes.fixPadding * 2.0,
+    marginHorizontal: Sizes.fixPadding * 2.0,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.grayColor,
   },
   buttonStyle: {
     backgroundColor: Colors.primaryColor,
     paddingVertical: Sizes.fixPadding * 2.0,
     alignItems: "center",
     justifyContent: "center",
+    margin: 10,
+    borderRadius: 15,
   },
-  apponitmentForField: {
-    backgroundColor: Colors.bodyBackColor,
-    padding: Sizes.fixPadding + 2.0,
-    borderRadius: Sizes.fixPadding - 5.0,
-    height: Platform.OS == "ios" ? 120 : null,
-    paddingTop:
-      Platform.OS == "ios" ? Sizes.fixPadding + 5.0 : Sizes.fixPadding,
+  appointmentForField: {
+    borderWidth: 1,
+    borderColor: Colors.grayColor,
+    padding: Sizes.fixPadding + 5.0,
+    borderRadius: Sizes.fixPadding,
+    textAlignVertical: "top",margin:10
+  },
+ 
+  doctorDetails: {
+    paddingHorizontal: Sizes.fixPadding,
+    flex: 1,
+  },
+  doctorName: {
+    ...Fonts.blackColor16Bold,
+  },
+  doctorService: {
+    ...Fonts.grayColor14Regular,
+  },
+  dateContainer: {
+    margin: Sizes.fixPadding * 2.0,
+  },
+  dateTitle: {
+    ...Fonts.blackColor16Bold,
+  },
+  timeContainer: {
+    margin: Sizes.fixPadding * 2.0,
+  },
+  timeTitle: {
+    ...Fonts.blackColor16Bold,
+  },
+  placeholderText: {
+    ...Fonts.grayColor14Regular,
+  },
+  dateText: {
+    ...Fonts.blackColor16Bold,
+  },
+  timeText: {
+    ...Fonts.blackColor16Bold,
+  },
+  appointmentInfoContainer: {
+    margin: Sizes.fixPadding * 2.0,
+  },
+  appointmentInfoTitle: {
+    ...Fonts.blackColor16Bold,
   },
 });

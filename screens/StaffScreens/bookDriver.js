@@ -1,27 +1,109 @@
-import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, Dimensions } from 'react-native';
-import React, { useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Alert } from 'react-native';
+import React, { useState ,useEffect} from 'react';
 import { Colors, Fonts, Sizes, CommonStyles } from '../../constants/styles';
-import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import MyStatusBar from '../../components/myStatusBar';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
+import UsersComponent from '../../components/allUsers';
+import { database } from "../../firebase/firebase";
+import { ref, set, get, child, push } from "firebase/database";
+import Loader from '../../components/activityLoader';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get('window');
 
-const BookDriver = ({ navigation }) => {
+const BookDriver = ({ navigation, route }) => {
+    const { driverId,driverName,profile_picture } = route.params;
     const [service, setService] = useState('');
     const [selectedPatient, setSelectedPatient] = useState('');
     const [date, setDate] = useState(new Date());
+    const [time, setTime] = useState(new Date()); 
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [destination, setDestination] = useState('');
+    const [loading, setLoading] = useState(false); 
+    const [userId, setUserId] = useState(null);
+
+useEffect(() => {
+    const fetchUserId = async () => {
+        const id = await AsyncStorage.getItem("userId");
+        setUserId(id);
+    };
+    fetchUserId();
+}, []);
 
     const handleDateChange = (event, selectedDate) => {
         const currentDate = selectedDate || date;
         setShowDatePicker(false);
-        setShowTimePicker(false);
         setDate(currentDate);
     };
+
+    const handleTimeChange = (event, selectedTime) => {
+        const currentTime = selectedTime || time;
+        setShowTimePicker(false);
+        setTime(currentTime); 
+    };
+
+    const handleSelectPatient = (patientName) => {
+        setSelectedPatient(patientName);
+        console.log("Selected patient:", patientName);
+    };
+
+    const handleBookDriver = async () => {
+        console.log("Booking started");
+        setLoading(true);
+    
+        // Check for necessary fields
+        if (!selectedPatient || !date || !time || !destination || !service || !driverId) {
+            Alert.alert('Error', 'All fields are required!');
+            setLoading(false);
+            return;
+        }
+    
+        const bookingData = {
+            patientid: selectedPatient,
+            date: date.toDateString(),
+            time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            destination,
+            driverId: driverId,
+            driverName,
+            profile_picture,
+            status: 'pending',
+            staffId: userId,
+            createdat: new Date().toISOString(),
+        };
+        
+    
+        console.log("Booking data to be set:", bookingData);
+    
+        const dbRef = ref(database);
+    
+        try {
+            const snapshot = await get(child(dbRef, 'driver_booking'));
+            console.log("Driver booking table snapshot retrieved:", snapshot.val());
+    
+            const bookingRef = push(ref(database, 'driver_booking'));
+            await set(bookingRef, bookingData);
+            console.log("Data set in database:", bookingData);
+    
+            // Clear the form fields after successful booking
+            setSelectedPatient('');
+            setService('');
+            setDate(new Date());
+            setTime(new Date());
+            setDestination('');
+    
+            navigation.push('StaffAppointmentScreen');
+        } catch (error) {
+            Alert.alert('Booking failed', 'An error occurred during booking. Please try again.');
+            console.error('Booking error:', error); // Log the error for debugging
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    
 
     return (
         <View style={{ flex: 1, backgroundColor: Colors.whiteColor }}>
@@ -37,6 +119,7 @@ const BookDriver = ({ navigation }) => {
                     {Destination()}
                     {BookButton()}
                 </ScrollView>
+                <Loader isLoading={loading} />
             </View>
         </View>
     );
@@ -60,7 +143,7 @@ const BookDriver = ({ navigation }) => {
 
     function BookButton() {
         return (
-            <TouchableOpacity activeOpacity={0.8} style={styles.buttonStyle}>
+            <TouchableOpacity activeOpacity={0.8} style={styles.buttonStyle} onPress={handleBookDriver}>
                 <Text style={{ ...Fonts.whiteColor17Bold }}>Book Now</Text>
             </TouchableOpacity>
         );
@@ -71,12 +154,7 @@ const BookDriver = ({ navigation }) => {
             <View style={{ marginHorizontal: Sizes.fixPadding * 2.0, marginBottom: Sizes.fixPadding }}>
                 <Text style={{ ...Fonts.grayColor14Medium }}>Select Patient</Text>
                 <View style={styles.picker}>
-                    <Picker selectedValue={selectedPatient} onValueChange={(itemValue) => setSelectedPatient(itemValue)}>
-                        <Picker.Item label="Select patient" value="" />
-                        <Picker.Item label="Emma Rooke" value="emma" />
-                        <Picker.Item label="George Bush" value="george" />
-                        <Picker.Item label="Jack Cloney" value="jack" />
-                    </Picker>
+                    <UsersComponent onSelectuser={handleSelectPatient} />
                 </View>
             </View>
         );
@@ -89,7 +167,7 @@ const BookDriver = ({ navigation }) => {
                 <TouchableOpacity style={styles.textFieldWrapStyle} onPress={() => setShowDatePicker(true)}>
                     <MaterialIcons name="calendar-today" color={Colors.primaryColor} size={20} />
                     <Text style={styles.textFieldStyle}>
-                        {date ? date.toDateString() : 'Select Date'}
+                        {date ? date.toLocaleDateString() : 'Select Date'}
                     </Text>
                 </TouchableOpacity>
                 {showDatePicker && (
@@ -98,7 +176,7 @@ const BookDriver = ({ navigation }) => {
             </View>
         );
     }
-
+    
     function TimeSection() {
         return (
             <View style={{ marginHorizontal: Sizes.fixPadding * 2.0, marginBottom: Sizes.fixPadding }}>
@@ -106,11 +184,11 @@ const BookDriver = ({ navigation }) => {
                 <TouchableOpacity style={styles.textFieldWrapStyle} onPress={() => setShowTimePicker(true)}>
                     <MaterialIcons name="access-time" color={Colors.primaryColor} size={20} />
                     <Text style={styles.textFieldStyle}>
-                        {date ? date.toTimeString().slice(0, 5) : 'Select Time'}
+                        {time ? time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Select Time'}
                     </Text>
                 </TouchableOpacity>
                 {showTimePicker && (
-                    <DateTimePicker value={date} mode="time" display="default" onChange={handleDateChange} />
+                    <DateTimePicker value={time} mode="time" display="default" onChange={handleTimeChange} />
                 )}
             </View>
         );

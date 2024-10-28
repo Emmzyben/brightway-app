@@ -1,12 +1,21 @@
-import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity ,ActivityIndicator,Alert} from 'react-native'
 import React, { useState } from 'react'
 import { Colors, Fonts, Sizes, CommonStyles } from '../../constants/styles'
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import MyStatusBar from '../../components/myStatusBar';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { database } from "../../firebase/firebase";
+import { ref, set, get, child, push} from "firebase/database";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Picker } from '@react-native-picker/picker';
-const SignupScreen2 = ({ navigation }) => {
+import ServicesComponent from '../../components/services';
+import * as ImagePicker from 'expo-image-picker';
+import Loader from '../../components/activityLoader';
 
+
+const SignupScreen2= ({ navigation }) => {
+    const [loading, setLoading] = useState(false);
     const [firstName, setfirstName] = useState('');
     const [lastName, setlastName] = useState('');
     const [mobileNumber, setmobileNumber] = useState('');
@@ -15,18 +24,177 @@ const SignupScreen2 = ({ navigation }) => {
     const [state, setState] = useState('');
     const [city, setCity] = useState('');
     const [zip, setZip] = useState('');
+    const [services, setSelectedService] = useState("");
     const [usertype, setUsertype] = useState('provider');
-    const [services, setService] = useState('');
     const [username, setusername] = useState('');
     const [password, setpassword] = useState('');
     const [securePasswrod, setsecurePasswrod] = useState(true);
     const [dob, setDob] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
-    
+    const [bio, setBio] = useState('');
+    const [isUploaded, setIsUploaded] = useState(false);
+    const [profilePicture, setProfilePicture] = useState(null);
+
+
+    const pickImage = async (source) => {
+        let result;
+        if (source === 'camera') {
+            result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 1,
+            });
+        } else {
+            result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 1,
+            });
+        }
+
+        console.log('Image selection result:', result);
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const selectedImage = result.assets[0];
+            console.log('Selected image:', selectedImage);
+
+            setLoading(true); // Start loading
+
+            try {
+                const downloadURL = await uploadFile(selectedImage);
+                console.log('Image download URL:', downloadURL);
+
+                if (downloadURL) {
+                    setProfilePicture(downloadURL);
+                    setIsUploaded(true); // Change the upload status
+                } else {
+                    Alert.alert('Upload failed', 'Could not get download URL.');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                Alert.alert('Upload failed', 'An error occurred during the upload. Please try again.');
+            } finally {
+                setLoading(false); // Stop loading after upload attempt
+            }
+        }
+    };
+    function selectImage() {
+        Alert.alert("Select Image", "Choose a source", [
+            {
+                text: "Camera",
+                onPress: () => pickImage('camera'),
+            },
+            {
+                text: "Gallery",
+                onPress: () => pickImage('gallery'),
+            },
+            {
+                text: "Cancel",
+                style: "cancel",
+            },
+        ]);
+    }
+    const uploadFile = async (file) => {
+        if (!file || !file.uri) {
+            console.error('No file or file.uri provided');
+            throw new Error('No valid file selected');
+        }
+
+        try {
+            const response = await fetch(file.uri);
+            const blob = await response.blob();
+            const storage = getStorage();
+            const storagePath = storageRef(storage, `uploads/${file.uri.split('/').pop()}`); 
+
+            // Upload the file
+            const snapshot = await uploadBytes(storagePath, blob);
+            console.log('Uploaded a blob or file!', snapshot);
+
+            // Get the download URL
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            return downloadURL; 
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            throw error; // Rethrow the error for further handling
+        }
+    };
     const handleDateChange = (event, selectedDate) => {
         const currentDate = selectedDate || dob;
         setShowDatePicker(Platform.OS === 'ios');
         setDob(currentDate);
+    };
+    const handleSelectService = (service) => {
+        setSelectedService(service);
+        console.log("Selected service:", service);
+      };
+    const handleSignup = async () => {
+        console.log("Signup started");
+        setLoading(true); 
+        // Validate input fields
+        if (!firstName || !lastName || !mobileNumber || !email || !address || !state || !city || !zip || !username || !password || !bio) {
+            Alert.alert('Error', 'All fields are required!');
+            return;
+        }
+       
+    
+        
+        const userData = {
+            firstName,
+            lastName,
+            mobileNumber,
+            email: email.toLowerCase(), 
+            address,
+            state,
+            city,
+            zip,
+            bio,
+            services,
+            username: username.toLowerCase(), 
+            password: password,
+            approved:"unapproved",
+            dob: dob.toISOString(),
+            usertype: 'provider',
+            profile_picture: profilePicture, 
+        };
+    
+        const dbRef = ref(database);
+    
+        try {
+            const snapshot = await get(child(dbRef, 'users_table'));
+            console.log("Users table snapshot retrieved:", snapshot);
+    
+            // Check if the users table exists and if the email already exists
+            if (snapshot.exists()) {
+                const users = snapshot.val();
+                console.log("Users data retrieved:", users);
+                const existingEmail = Object.values(users).some(user => user.email === email);
+                console.log("Existing email check:", existingEmail);
+                if (existingEmail) {
+                    Alert.alert('Registration Failed', 'Email already in use.');
+                    return; // Return early if email already exists
+                }
+            }
+    
+            // Create a new user entry in the database
+            const userRef = push(ref(database, 'users_table')); // Correctly create a new child reference
+            await set(userRef, userData);
+            console.log("User data set in database:", userData);
+    
+            // Store user ID in AsyncStorage
+            const userId = userRef.key;
+            await AsyncStorage.setItem('userId', userId);
+            console.log("User ID stored in AsyncStorage:", userId);
+    
+            // Navigate to verification page
+            navigation.push('Verification', { mobileNumber, usertype });
+        } catch (error) {
+            Alert.alert('Signup failed', 'An error occurred during signup. Please try again.');
+            console.error('Signup error:', error); // Log the error for debugging
+        } finally {
+            setLoading(false); // Stop loading in the finally block
+        }
     };
     
 
@@ -48,17 +216,45 @@ const SignupScreen2 = ({ navigation }) => {
                     {City()}
                     {zipCode()}
                     {Services()}
+                    {bioInfo()}
                     {Username()}
                     {passwordInfo()}
+                    {profilePictureUpload()}
                     {termsAndConditionInfo()}
                     {signupButton()}
                 </ScrollView>
+                <Loader isLoading={loading} />
             </View>
             {alreadyAccountInfo()}
         </View>
     )
 
-  
+    function Services() {
+        return (
+            <View style={{ marginHorizontal: Sizes.fixPadding * 2.0, marginBottom: Sizes.fixPadding }}>
+              <Text style={{ ...Fonts.grayColor14Medium }}>
+                Services
+              </Text>
+              <View style={styles.picker}>
+                <ServicesComponent onSelectService={handleSelectService} />
+              </View>
+            </View>
+          );
+        };
+      
+        function profilePictureUpload() {
+            return (
+                <TouchableOpacity onPress={selectImage} style={styles.imageUploadButton}>
+               
+                    <Text style={{ ...Fonts.grayColor14Medium }}>
+                        {isUploaded ? "Uploaded" : "Upload Profile Picture"}
+                    </Text>
+          
+            </TouchableOpacity>
+            
+            );
+        }
+        
     function backArrow() {
         return (
             <MaterialIcons
@@ -86,37 +282,20 @@ const SignupScreen2 = ({ navigation }) => {
         return (
             <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => { navigation.push('Verification', { mobileNumber, usertype }) }} 
-          
+                onPress={handleSignup}
                 style={styles.buttonStyle}
             >
-                <Text style={{ ...Fonts.whiteColor17Bold }}>
-                    Sign Up
-                </Text>
+             
+                  
+                    <Text style={{ ...Fonts.whiteColor17Bold }}>
+                        Sign Up
+                    </Text>
+             
             </TouchableOpacity>
-        )
-    }
-    function Services() {
-        return (
-            <View style={{ marginHorizontal: Sizes.fixPadding * 2.0, marginBottom: Sizes.fixPadding }}>
-            <Text style={{ ...Fonts.grayColor14Medium }}>
-                  Services
-                </Text>
-          <View style={styles.picker}>
-          
-            <Picker
-              selectedValue={services}
-              onValueChange={(itemValue) => setService(itemValue)}
-            >
-              <Picker.Item label="Select service" value="" />
-              <Picker.Item label="Doctor" value="doctor" />
-              <Picker.Item label="nurse" value="nurse" />
-              <Picker.Item label="Staff" value="staff" />
-            </Picker>
-          </View>
-          </View>
         );
-      }
+    }
+    
+
     function termsAndConditionInfo() {
         return (
             <Text style={{ ...Fonts.grayColor14Medium, marginHorizontal: Sizes.fixPadding * 2.0, }}>
@@ -220,7 +399,30 @@ const SignupScreen2 = ({ navigation }) => {
             </View>
         )
     }
-
+    function bioInfo() {
+        return (
+            <View style={{ marginHorizontal: Sizes.fixPadding * 2.0, marginTop: Sizes.fixPadding * 4.0, marginBottom: Sizes.fixPadding * 2.0, }}>
+                <Text style={{ ...Fonts.grayColor14Medium }}>
+                    Enter Bio
+                </Text>
+                <View style={styles.textFieldWrapStyle}>
+                  
+                    <TextInput
+                        value={bio}
+                        onChangeText={(value) => { setBio(value) }}
+                        style={[styles.textFieldStyle, { height: 70 }]} 
+                        cursorColor={Colors.primaryColor}
+                        selectionColor={Colors.primaryColor}
+                        placeholder="Enter bio"
+                        placeholderTextColor={Colors.grayColor}
+                        multiline={true}
+                        numberOfLines={5} 
+                    />
+                </View>
+            </View>
+        )
+    }
+    
     function firstname() {
         return (
             <View style={{ marginHorizontal: Sizes.fixPadding * 2.0, marginTop: Sizes.fixPadding * 4.0, marginBottom: Sizes.fixPadding * 2.0, }}>
@@ -428,7 +630,7 @@ const SignupScreen2 = ({ navigation }) => {
                         mode="date"
                         display="default"
                         onChange={handleDateChange}
-                        maximumDate={new Date()} // Ensure no future date selection
+                        maximumDate={new Date()} 
                     />
                 )}
             </View>
@@ -453,12 +655,6 @@ const SignupScreen2 = ({ navigation }) => {
 export default SignupScreen2
 
 const styles = StyleSheet.create({
-    picker: {
-        margin:0,
-        borderRadius: Sizes.fixPadding,
-        backgroundColor: Colors.bodyBackColor,
-        marginTop: Sizes.fixPadding * 2.0,
-      },
     exitWrapStyle: {
         backgroundColor: Colors.blackColor,
         position: "absolute",
@@ -505,4 +701,25 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     }
+    ,  picker: {
+        margin:0,
+        borderRadius: Sizes.fixPadding,
+        backgroundColor: Colors.bodyBackColor,
+        marginTop: Sizes.fixPadding * 2.0,
+        
+      },
+      selectedServiceText: {
+    marginTop: Sizes.fixPadding,
+    fontSize: 16,
+    color: '#333', 
+  },
+  imageUploadButton: {
+    marginHorizontal: Sizes.fixPadding * 2.0,
+    marginTop: Sizes.fixPadding * 2.0,
+    padding: 20,
+    borderRadius: 5,
+    alignItems: 'center',
+    borderWidth:1,backgroundColor: Colors.bodyBackColor,
+    borderColor:0,marginBottom:30
+},
 })

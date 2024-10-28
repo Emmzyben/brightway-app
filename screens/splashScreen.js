@@ -12,12 +12,15 @@ import {
 import React, { useCallback } from "react";
 import { Colors, Fonts, Sizes } from "../constants/styles";
 import { useFocusEffect } from "@react-navigation/native";
+import { useUser } from "./auth/user";
 
 const { width } = Dimensions.get("window");
 
 const SplashScreen = ({ navigation }) => {
+  const { checkUser, user } = useUser(); 
+
   const backAction = () => {
-    if (Platform.OS == "ios") {
+    if (Platform.OS === "ios") {
       navigation.addListener("beforeRemove", (e) => {
         e.preventDefault();
       });
@@ -38,9 +41,40 @@ const SplashScreen = ({ navigation }) => {
     }, [backAction])
   );
 
-  setTimeout(() => {
-    navigation.push("Onboarding");
-  }, 2000);
+  useFocusEffect(
+    useCallback(() => {
+      const checkAndRedirect = async () => {
+        // Check if user is logged in
+        await checkUser();
+
+        setTimeout(() => {
+          if (user) {
+            switch (user.usertype) {
+              case "user":
+                navigation.replace("BottomTabBar");
+                break;
+              case "provider":
+                navigation.replace("ProviderBottomTabBar");
+                break;
+              case "staff":
+                navigation.replace("StaffBottomTabBar");
+                break;
+              case "driver":
+                navigation.replace("DriverBottomTabBar");
+                break;
+              default:
+                navigation.replace("BottomTabBar");
+                break;
+            }
+          } else {
+            navigation.replace("Onboarding");
+          }
+        }, 2000); 
+      };
+
+      checkAndRedirect();
+    }, [user, navigation])
+  );
 
   return (
     <View style={{ flex: 1 }}>

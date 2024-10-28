@@ -8,213 +8,161 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Colors, Fonts, Sizes } from "../../constants/styles";
 import { MaterialIcons } from "@expo/vector-icons";
 import MyStatusBar from "../../components/myStatusBar";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import useStoreMessage from "../../hooks/useStoreMessage";
+import useFetchMessages from "../../hooks/useFetchMessages";
 
 const { width } = Dimensions.get("window");
 
-const userMessages = [
-  {
-    id: "1",
-    message:
-      "Hii Doctor, I’m a Gastroenterology patient. I need your help imidiately.",
-    isSender: true,
-    messageDateAndTime: "Jan 23, 10:05 pm",
-  },
-  {
-    id: "2",
-    message: "Hi, don’t warry I am here.Let me know your situation now.",
-    isSender: false,
-    messageDateAndTime: "Jan 23, 10:05 pm",
-  },
-  {
-    id: "3",
-    messageType: "image",
-    messageImage: require("../../assets/images/messageImage.png"),
-    isSender: true,
-    messageDateAndTime: "Jan 23, 10:05 pm",
-  },
-];
+const ChatWithDoctorScreen = ({ route, navigation }) => {
+  const [message, setMessage] = useState(""); // State for new message input
+  const [messagesList, setMessagesList] = useState([]); // State for the list of messages
+  const [loading, setLoading] = useState(true); // Loading state for messages
 
-const ChatWithDoctorScreen = ({ navigation }) => {
-  const [messagesList, setMessagesList] = useState(userMessages);
-  const doctorImage = require("../../assets/images/doctors/doctor1.png");
+  const { conversationId, participant1Id, conversationData } = route.params;
+  const {
+    participant2Id,
+    participant2FirstName,
+    participant2LastName,
+    participant2_picture,
+  } = conversationData;
+
+  // Fetch logged-in userId
+  const [loggedInUserId, setLoggedInUserId] = useState(null);
+  useEffect(() => {
+    const getUserId = async () => {
+      const userId = await AsyncStorage.getItem("userId");
+      console.log("Logged in user ID:", userId); // Debug log
+      setLoggedInUserId(userId);
+    };
+    getUserId();
+  }, []);
+
+  // Fetch messages using useFetchMessages hook
+  const { messages, error } = useFetchMessages(conversationId, participant1Id);
+  
+  useEffect(() => {
+    if (messages) {
+      console.log("Fetched messages:", messages); // Debug log
+      setMessagesList(messages); // Set the fetched messages
+      setLoading(false); // Stop loading once messages are fetched
+    }
+  }, [messages]);
+
+  // Store new message using useStoreMessage hook
+  const { storeMessage } = useStoreMessage();
+
+  // Function to send a new message
+  const sendMessage = async () => {
+    if (message.trim() === "") return; // Prevent sending empty messages
+
+    const timestamp = new Date().toISOString(); // Timestamp for the message
+
+    const newMessage = {
+      conversationId,
+      message,
+      participant1Id,
+      participant2Id,
+      timestamp,
+    };
+
+    // Store the message in the database
+    const { success } = await storeMessage(conversationId, message, participant1Id, timestamp);
+
+    if (success) {
+      setMessage(""); // Clear input field if successful
+    } else {
+      console.log("Failed to store message");
+    }
+  };
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS == 'ios' ? 'height' : null}
+      behavior={Platform.OS === "ios" ? "padding" : null}
       style={{ flex: 1, backgroundColor: Colors.bodyBackColor }}
     >
       <MyStatusBar />
       <View style={{ flex: 1 }}>
         {header()}
-        {messages()}
+        {loading ? (
+          <ActivityIndicator size="large" color={Colors.primaryColor} />
+        ) : error ? (
+          <Text style={{ color: Colors.errorColor, textAlign: 'center' }}>Error fetching messages</Text>
+        ) : (
+          Messages()
+        )}
       </View>
-      {typingIndicator()}
       {typeMessage()}
     </KeyboardAvoidingView>
   );
 
-  function messages() {
-    const renderItem = ({ item, index }) => {
-      return (
+function Messages() {
+  const renderItem = ({ item, index }) => (
+    <View
+      style={{
+        alignItems: item.senderId === loggedInUserId ? "flex-end" : "flex-start", // Align items based on sender
+        marginHorizontal: Sizes.fixPadding * 3.0,
+        marginBottom:
+          index !== messagesList.length - 1 &&
+          messagesList[index].senderId === messagesList[index + 1].senderId
+            ? Sizes.fixPadding - 2.0
+            : Sizes.fixPadding * 2.5,
+      }}
+    >
+      <View style={{ flexDirection: item.senderId === loggedInUserId ? "row-reverse" : "row", alignItems: "flex-start" }}>
+        {item.senderId !== loggedInUserId ? (
+          <View style={{ marginRight: Sizes.fixPadding }}>
+            <Image
+              source={{ uri: participant2_picture }}
+              style={styles.receiverImageStyle}
+            />
+          </View>
+        ) : null}
         <View
           style={{
-            alignItems: item.isSender == true ? "flex-end" : "flex-start",
-            marginHorizontal: Sizes.fixPadding * 2.0,
-            marginBottom:
-              index != messagesList.length - 1
-                ? messagesList[index].isSender ==
-                  messagesList[index + 1].isSender
-                  ? Sizes.fixPadding - 2.0
-                  : Sizes.fixPadding * 2.5
-                : messagesList[index].isSender ==
-                  messagesList[index - 1].isSender
-                  ? Sizes.fixPadding * 2.5
-                  : Sizes.fixPadding - 2.0,
+            ...styles.messageWrapStyle,
+            backgroundColor:
+              item.senderId === loggedInUserId ? Colors.primaryColor : Colors.whiteColor, // Change colors
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-            {!item.isSender ? (
-              index != 0 ? (
-                messagesList[index].isSender ==
-                  messagesList[index - 1].isSender ? (
-                  <View style={{ marginRight: Sizes.fixPadding * 4.5 }} />
-                ) : (
-                  <View style={{ marginRight: Sizes.fixPadding }}>
-                    <Image
-                      source={doctorImage}
-                      style={{ ...styles.receiverImageStyle }}
-                    />
-                  </View>
-                )
-              ) : messagesList[index].isSender ==
-                messagesList[index + 1].isSender ||
-                !messagesList[index].isSender ? (
-                <View style={{ marginRight: Sizes.fixPadding }}>
-                  <Image
-                    source={doctorImage}
-                    style={{ ...styles.receiverImageStyle }}
-                  />
-                </View>
-              ) : null
-            ) : null}
-            <View>
-              <View
-                style={{
-                  ...styles.messageWrapStyle,
-                  backgroundColor:
-                    item.isSender == true
-                      ? Colors.whiteColor
-                      : Colors.primaryColor,
-                }}
-              >
-                {item.messageType == "image" ? (
-                  <Image
-                    source={item.messageImage}
-                    style={{
-                      margin: -5.0,
-                      width: width / 2.0,
-                      height: width / 3.0,
-                      borderRadius: Sizes.fixPadding,
-                    }}
-                  />
-                ) : (
-                  <Text
-                    style={{
-                      ...(item.isSender
-                        ? { ...Fonts.blackColor14Medium }
-                        : { ...Fonts.whiteColor14Medium }),
-                    }}
-                  >
-                    {item.message}
-                  </Text>
-                )}
-              </View>
-              {item.isSender ? null : (
-                <Text
-                  style={{
-                    marginTop: Sizes.fixPadding - 5.0,
-                    ...Fonts.grayColor12Medium,
-                    alignSelf: "flex-end",
-                  }}
-                >
-                  {item.messageDateAndTime}
-                </Text>
-              )}
-            </View>
-          </View>
+          <Text
+            style={
+              item.senderId === loggedInUserId
+                ? { ...Fonts.whiteColor14Medium }
+                : { ...Fonts.blackColor14Medium }
+            }
+          >
+            {item.message}
+          </Text>
         </View>
-      );
-    };
-    return (
-      <View style={{ paddingBottom: Sizes.fixPadding * 8.0 }}>
-        <FlatList
-          inverted
-          data={messagesList}
-          keyExtractor={(item) => `${item.id}`}
-          renderItem={renderItem}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{
-            flexDirection: "column-reverse",
-            paddingBottom: Sizes.fixPadding * 2.0,
-          }}
-          automaticallyAdjustKeyboardInsets={true}
-        />
       </View>
-    );
-  }
+    </View>
+  );
 
-  function typingIndicator() {
-    return (
-      <View
-        style={{
-          margin: Sizes.fixPadding * 2.0,
-          flexDirection: "row",
-          alignItems: "center",
-        }}
-      >
-        <Image source={doctorImage} style={{ ...styles.receiverImageStyle }} />
-        <Text
-          style={{
-            marginLeft: Sizes.fixPadding + 5.0,
-            ...Fonts.grayColor14Medium,
-          }}
-        >
-          Dr. Ismail Sendi is typing...
-        </Text>
-      </View>
-    );
-  }
+  return (
+    <FlatList
+      inverted
+      data={messagesList}
+      keyExtractor={(item) => `${item.timestamp}-${item.senderId}`} 
+      renderItem={renderItem}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{
+        flexDirection: "column-reverse",
+        paddingBottom: Sizes.fixPadding * 2.0,
+        
+      }}
+    />
+  );
+}
 
-  function addMessage({ message }) {
-    const oldMessages = messagesList;
-
-    let date = Date();
-    let hour = new Date(date).getHours();
-    let minute = new Date(date).getMinutes();
-    let AmPm = hour >= 12 ? "pm" : "am";
-    let finalhour = hour > 12 ? hour - 12 : hour;
-    let displayHour =
-      finalhour.toString().length == 1 ? `0${finalhour}` : finalhour;
-    let displayMinute = minute.toString().length == 1 ? `0${minute}` : minute;
-
-    const newMessage = {
-      id: messagesList.length + 1,
-      message: message,
-      messageTime: `${displayHour}:${displayMinute} ${AmPm}`,
-      isSender: true,
-    };
-
-    oldMessages.push(newMessage);
-    setMessagesList(oldMessages);
-  }
 
   function typeMessage() {
-    const [message, setMessage] = useState("");
     return (
       <View style={styles.typeMessageWrapStyle}>
         <TextInput
@@ -235,54 +183,43 @@ const ChatWithDoctorScreen = ({ navigation }) => {
           size={20}
           color={Colors.primaryColor}
           style={{ marginLeft: Sizes.fixPadding - 5.0 }}
-          onPress={() => {
-            if (message != "") {
-              addMessage({ message: message });
-              setMessage("");
-            }
-          }}
+          onPress={sendMessage}
         />
       </View>
     );
   }
 
+  // Header UI
   function header() {
-    const isOnline = true;
     return (
       <View style={styles.headerStyle}>
-        <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
           <MaterialIcons
             name="arrow-back"
             size={24}
             color={Colors.blackColor}
-            onPress={() => {
-              navigation.pop();
-            }}
+            onPress={() => navigation.pop()}
           />
           <Image
-            source={require("../../assets/images/doctors/doctor1.png")}
+            source={{ uri: participant2_picture }}
             style={styles.headerImageStyle}
           />
-          <View style={{ flex: 1, marginHorizontal: Sizes.fixPadding }}>
-            <Text numberOfLines={1} style={{ ...Fonts.blackColor18Bold }}>
-              Dr. Ismail Sendi
+          <View style={{ marginHorizontal: Sizes.fixPadding }}>
+            <Text numberOfLines={1} style={Fonts.blackColor18Bold}>
+              {`${participant2FirstName} ${participant2LastName}`}
             </Text>
             <Text>
               <Text
                 style={{
-                  ...Fonts.blackColor18Bold,
-                  color: isOnline ? Colors.darkGreenColor : Colors.redColor,
+                  ...Fonts.blackColor14Medium,
+                  color: Colors.darkGreenColor,
                 }}
               >
-                • { }
-              </Text>
-              <Text style={{ ...Fonts.blackColor14Medium }}>
-                {isOnline ? "Online" : "Offline"}
+                • Online
               </Text>
             </Text>
           </View>
         </View>
-        <MaterialIcons name="more-vert" color={Colors.blackColor} size={22} />
       </View>
     );
   }
@@ -303,28 +240,29 @@ const styles = StyleSheet.create({
     height: 45.0,
     borderRadius: 22.5,
     backgroundColor: Colors.primaryColor,
-    resizeMode: "contain",
   },
   typeMessageWrapStyle: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.whiteColor,
-    borderRadius: Sizes.fixPadding,
+    borderRadius: Sizes.fixPadding * 2.0,
     marginHorizontal: Sizes.fixPadding * 2.0,
-    marginBottom: Sizes.fixPadding * 2.0,
-    paddingHorizontal: Sizes.fixPadding,
     paddingVertical: Sizes.fixPadding + 5.0,
-  },
-  messageWrapStyle: {
-    padding: Sizes.fixPadding,
-    borderRadius: Sizes.fixPadding,
-    maxWidth: width - 90.0,
+    paddingHorizontal: Sizes.fixPadding,
+    position: "absolute",
+    bottom: Sizes.fixPadding * 1.0,
+    left: 0,
+    right: 0,
   },
   receiverImageStyle: {
-    width: 35.0,
-    height: 35.0,
-    borderRadius: 17.5,
-    resizeMode: "contain",
+    width: 40.0,
+    height: 40.0,
+    borderRadius: 20.0,
     backgroundColor: Colors.primaryColor,
+  },
+  messageWrapStyle: {
+    paddingHorizontal: Sizes.fixPadding * 2.0,
+    paddingVertical: Sizes.fixPadding + 3.0,
+    borderRadius: Sizes.fixPadding * 2.5,
   },
 });

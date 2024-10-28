@@ -1,45 +1,16 @@
-import { StyleSheet, Text, View, Image, TextInput, FlatList, ScrollView, Dimensions } from 'react-native'
-import React, { useRef, useState, useEffect } from 'react'
+import { StyleSheet, Text, View, Image, TextInput, FlatList, ScrollView, Dimensions } from 'react-native';
+import React, { useRef, useState, useEffect,useCallback} from 'react';
 import { Colors, Fonts, Sizes } from '../../constants/styles'
 import { showRating } from '../../components/showRatings';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import UpperTab from '../../components/upperTab';
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
+import useFetchUserAppointments from '../../hooks/useFetchProviderAppointments';
+import useFetchUserDetails from '../../hooks/useFetchUserDetails';
 const { width } = Dimensions.get('window');
-const aboutDoctors = [
-    'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ac sit ipsum eget sit. Eget nunc, ut in in ultricies.',
-    'Mauris sem mauris urna ipsum quis est turpis. Pretium nec at elementum purus duis adipiscing interdum matt.Sed mi feugiat a neque dictum dictumst. Euismod eliit semper nisl malesuada duis sit sapien nisl.'
-];
 
 
 
-
-const userList = [
-    {
-        id: '1',
-        providerName: 'Mrs Richard Wood',
-        booking: 'May 3, 10am',
-        ProviderImage: [
-            require('../../assets/images/users/user1.png'),
-        ],
-    },
-    {
-        id: '2',
-        providerName: 'Mrs Mile Wood',
-        booking: 'May 6, 11am',
-        ProviderImage: [
-            require('../../assets/images/users/user2.png'),
-        ],
-    },
-    {
-        id: '3',
-        providerName: 'Mrs Richardson green',
-        booking: 'May 30, 10am',
-        ProviderImage: [
-            require('../../assets/images/users/user3.png'),
-        ],
-    },
-];
 
 const pendingNotifications= [
     {
@@ -55,7 +26,35 @@ const pendingNotifications= [
 
 ];
 const ProviderHome = ({ navigation }) => {
+    const { appointments, fetchAppointments } = useFetchUserAppointments();
+    const { userDetails, error } = useFetchUserDetails();
+    const [userInfo, setUserInfo] = useState({
+        firstName: '',
+        lastName: '',
+        mobileNumber: '',
+        email: '',
+        password: '',
+        services:'',
+        bio:'',
+        profile_picture:''
+    });
+    useEffect(() => {
+        if (userDetails) {
+            setUserInfo({
+                firstName: userDetails.firstName,
+                lastName: userDetails.lastName,
+                mobileNumber: userDetails.mobileNumber,
+                email: userDetails.email,
+                bio:userDetails.bio,
+                password: '',
+                services: userDetails.services,
+                profile_picture: userDetails.profile_picture,
+            });
+        }
+    }, [userDetails]);
 
+const upcomingAppointments = appointments.filter(item => item.status === 'pending' || 'comfirmed');
+  
 
     return (
         <View style={{ flex: 1, backgroundColor: Colors.bodyBackColor }}>
@@ -66,7 +65,7 @@ const ProviderHome = ({ navigation }) => {
                        {doctorInfo()}
                         {aboutDoctor()}
                         {notifications()}
-                        {UpcomingAppointments()}
+                        {upcomingAppointmentsInfo()}
                     </>
                 }
                 showsVerticalScrollIndicator={false}
@@ -82,13 +81,12 @@ const ProviderHome = ({ navigation }) => {
                    Provider Bio
                 </Text>
                 {
-                    aboutDoctors.map((item, index) => (
-                        <Text key={`${index}`}
+                        <Text 
                             style={{ ...Fonts.grayColor14Medium, marginBottom: Sizes.fixPadding }}
                         >
-                            {item}
+                        {userInfo.bio}
                         </Text>
-                    ))
+                
                 }
                
             </View>
@@ -105,21 +103,18 @@ const ProviderHome = ({ navigation }) => {
             >
                 <View style={{ ...styles.doctorImageBackgroundStyle, }}>
                     <Image
-                        source={require('../../assets/images/doctors/doctor1.png')}
+                        source={{ uri: userInfo.profile_picture}}
                         style={styles.doctorImageStyle}
                     />
                 </View>
                 <View style={{ flex: 1, marginLeft: Sizes.fixPadding + 5.0 }}>
                     <Text numberOfLines={1} style={{ ...Fonts.blackColor17SemiBold }}>
-                        Dr.	Ismail Sendi
+                       {userInfo.firstName}  {userInfo.lastName} 
                     </Text>
                     <Text numberOfLines={1} style={{ marginVertical: Sizes.fixPadding - 5.0, ...Fonts.grayColor15Medium }}>
-                        Gastroenterologist 
+                    {userInfo.services} 
                     </Text>
-                    <View style={{ marginTop: Sizes.fixPadding - 8.0, flexDirection: 'row', alignItems: 'center' }}>
-                        {showRating({ number: 4.0 })}
-                        
-                    </View>
+                    
                 </View>
             </TouchableOpacity>
         )
@@ -182,74 +177,89 @@ const ProviderHome = ({ navigation }) => {
         )
     }
 
-    function UpcomingAppointments() {
-        const renderItem = ({ item }) => (
+    function upcomingAppointmentsInfo() {
+        if (upcomingAppointments.length === 0) {
+            return noAppointmentsInfo('No Upcoming Appointments');
+        }
+    
+        return (
+            <>
+                <View style={{ margin: Sizes.fixPadding * 2.0, flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ ...Fonts.blackColor18SemiBold, flex: 1 }}>
+                        Upcoming appointments
+                    </Text>
+                </View>
+    
+                <FlatList
+                    data={upcomingAppointments}
+                    keyExtractor={item => `${item.id}`}
+                    renderItem={renderItem}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingTop: Sizes.fixPadding }}
+                />
+            </>
+        );
+    }
+    function renderItem({ item }) {
+        return (
             <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => { navigation.push('ProviderAppointmentDetail') }}
+                onPress={() => { navigation.push('AppointmentDetail', { appointmentId: item.appointmentId }) }}
                 style={styles.hospitalInfoWrapStyle}
             >
-                <View style={{ flexDirection: 'row', alignItems: 'center', }}>
-                <View
-                style={{
-                  backgroundColor: "#F3E5F5",
-                  ...styles.notificationIconWrapStyle,
-                }}
-              >
-                <Ionicons
-                  name="timer"
-                  size={20}
-                  color='rgba(58, 155, 195, 0.80)'
-                />
-              </View>
-                    <View style={{ flex: 0.65, marginRight: Sizes.fixPadding - 5.0, }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View
+                        style={{
+                            backgroundColor: "#F3E5F5",
+                            ...styles.notificationIconWrapStyle,
+                        }}
+                    >
+                        <Ionicons
+                            name="notifications"
+                            size={20}
+                            color='rgba(58, 155, 195, 0.80)'
+                        />
+                    </View>
+                    <View style={{ flex: 0.65, marginRight: Sizes.fixPadding - 5.0 }}>
                         <Text numberOfLines={1} style={{ ...Fonts.blackColor16Medium }}>
-                            {item.providerName}
+                            {item.patient_firstName} {item.patient_lastName}
                         </Text>
                         <Text numberOfLines={1} style={{ marginTop: Sizes.fixPadding - 8.0, marginBottom: Sizes.fixPadding - 5.0, ...Fonts.grayColor14Medium }}>
-                            {item.booking}
+                            {item.bookDate} {item.bookTime}
                         </Text>
                     </View>
-                    <View style={{ flex: 0.35, }}>
-                        <ScrollView
-                            onPointerEnter={() => { }}
-                            horizontal showsHorizontalScrollIndicator={false}>
-                            {
-                                item.ProviderImage.map((image, index) => (
-                                    <Image
-                                        key={`${index}`}
-                                        source={image}
-                                        style={styles.hospitalImagesStyle}
-                                    />
-                                ))
-                            }
+                    <View style={{ flex: 0.35 }}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            <Image
+                                source={{ uri: item.patient_profile_picture}}
+                                style={styles.hospitalImagesStyle}
+                            />
                         </ScrollView>
                     </View>
                 </View>
-               
-               
             </TouchableOpacity>
-        )
+        );
+    }
+  
+    function noAppointmentsInfo(message) {
         return (
-            <View>
-                <View style={{ margin: Sizes.fixPadding * 2.0, flexDirection: 'row', alignItems: 'center', }}>
-                    <Text style={{ ...Fonts.blackColor18SemiBold, flex: 1, }}>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ margin: Sizes.fixPadding * 2.0, flexDirection: 'row', alignItems: 'center',marginBottom:30 }}>
+                    <Text style={{ ...Fonts.blackColor18SemiBold, flex: 1 }}>
                         Upcoming appointments
                     </Text>
-              </View>
-                <FlatList
-                    data={userList}
-                    keyExtractor={(item) => `${item.id}`}
-                    renderItem={renderItem}
-                    scrollEnabled={false}
-                    automaticallyAdjustKeyboardInsets={true}
+                </View>
+                <MaterialIcons
+                    name='event-note'
+                    color={Colors.lightGrayColor}
+                    size={40}
                 />
+                <Text style={{ marginTop: Sizes.fixPadding, ...Fonts.grayColor16SemiBold }}>
+                    {message}
+                </Text>
             </View>
-        )
+        );
     }
-
-  
-
  
 }
 
@@ -308,11 +318,12 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.purpleColor,
     },
     doctorImageStyle: {
-        width: (width / 3.5) - 15.0,
-        height: '125%',
+        height: 110,
+        width: width / 3.5,
         resizeMode: 'stretch',
         position: 'absolute',
         bottom: 0.0,
+        borderRadius: Sizes.fixPadding - 5.0,
     },
     doctorInfoWrapStyle: {
         backgroundColor: Colors.whiteColor,
@@ -320,7 +331,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginVertical: Sizes.fixPadding,
         paddingHorizontal: Sizes.fixPadding * 2.0,
-        paddingTop: Sizes.fixPadding * 4.0,
+        paddingTop: Sizes.fixPadding * 2.0,
         paddingBottom: Sizes.fixPadding * 2.0,
     },
     notificationIconWrapStyle: {

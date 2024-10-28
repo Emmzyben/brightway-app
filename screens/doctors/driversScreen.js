@@ -1,170 +1,101 @@
-import { StyleSheet, Text, View, TouchableOpacity, Image, FlatList, ScrollView, Dimensions } from 'react-native'
-import React, { useState } from 'react'
-import { Colors, Fonts, Sizes } from '../../constants/styles'
-import { MaterialIcons } from '@expo/vector-icons';
-import { Menu } from 'react-native-material-menu';
-import { showRating } from '../../components/showRatings';
+import { StyleSheet, Text, View, TouchableOpacity, Image, FlatList, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import { Colors, Fonts, Sizes } from '../../constants/styles';
 import MyStatusBar from '../../components/myStatusBar';
+import Loader from '../../components/activityLoader';
+import useFetchDrivers from '../../hooks/useFetchDrivers';
 
-const { width, height } = Dimensions.get('window');
-
-
-
-const driversList = [
-    {
-        id: '1',
-        driverImage: require('../../assets/images/users/user1.png'),
-        driverName: ' Ismail Sendi',
-        rating: 4.0,
-        ratingCount: 152,
-        
-          
-        bgColor: Colors.purpleColor,
-    },
-    {
-        id: '2',
-        driverImage: require('../../assets/images/users/user2.png'),
-        driverName: ' Barry George',
-        rating: 4.0,
-        ratingCount: 152,
-       
-          
-        bgColor: Colors.blueColor,
-    },
-    {
-        id: '3',
-        driverImage: require('../../assets/images/users/user3.png'),
-        driverName: ' Carol Pollack',
-        rating: 4.0,
-        ratingCount: 152,
-        
-          
-        bgColor: Colors.cyanColor,
-    },
-    {
-        id: '4',
-        driverImage: require('../../assets/images/users/user4.png'),
-        driverName: 'Howard Axe',
-        rating: 4.0,
-        ratingCount: 152,
-       
-          
-        bgColor: Colors.parrotColor,
-    },
-    {
-        id: '5',
-       driverImage: require('../../assets/images/users/user5.png'),
-        driverName: 'Sally Amsel',
-        rating: 4.0,
-        ratingCount: 152,
-        
-          
-        bgColor: Colors.greenColor,
-    },
-    {
-        id: '6',
-      driverImage: require('../../assets/images/users/user6.png'),
-        driverName: 'Jean Bocage',
-        rating: 4.0,
-        ratingCount: 152,
-       
-          
-        bgColor: Colors.yellowColor,
-    },
-    {
-        id: '7',
-        driverImage: require('../../assets/images/users/user7.png'),
-        driverName: 'Don Doman',
-        rating: 4.0,
-        ratingCount: 152,
-        
-          
-        bgColor: Colors.pitchColor,
-    },
-];
+const { width } = Dimensions.get('window');
 
 const DriversScreen = ({ navigation }) => {
+    const { drivers, loading, error } = useFetchDrivers();
 
-  
     return (
         <View style={{ flex: 1, backgroundColor: Colors.bodyBackColor }}>
             <MyStatusBar />
-            <View style={{ flex: 1, }}>
+            <View style={{ flex: 1 }}>
                 {header()}
-                {nearestdriversInfo()}
+                {loading ? <Loader isLoading={loading} /> : error ? <Text style={styles.errorText}>{error}</Text> : <Drivers />}
             </View>
         </View>
-    )
+    );
 
-    function nearestdriversInfo() {
+    function Drivers() {
+        if (drivers.length === 0) {
+            return (
+                <View style={styles.noDriversFoundContainer}>
+                    <Text style={styles.noDriversFoundText}>No drivers found</Text>
+                </View>
+            );
+        }
+
         const renderItem = ({ item }) => (
             <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => { navigation.push('BookDriver') }}
-                style={styles.docorInfoWrapStyle}
+                onPress={() => { 
+    console.log("Navigating to BookDriver with driverId:", item.id); 
+    navigation.push('BookDriver', { 
+        driverId: item.id, 
+        driverName: `${item.firstName} ${item.lastName}`, 
+        profile_picture: item.profile_picture 
+    }); 
+}}
+
+
+                style={styles.driverInfoWrapStyle}
             >
-                <View style={{ backgroundColor: item.bgColor, ...styles.driverImageBackgroundStyle, }}>
+                <View style={{ backgroundColor: Colors.lightGray, ...styles.driverImageBackgroundStyle }}>
                     <Image
-                        source={item.driverImage}
+                        source={item.profile_picture ? { uri: item.profile_picture } : require('../../assets/images/user.png')}
                         style={styles.driverImageStyle}
                     />
                 </View>
-                <View style={{ flex: 1, marginLeft: Sizes.fixPadding + 2.0, }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', }}>
+                <View style={{ flex: 1, marginLeft: Sizes.fixPadding + 2.0 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text numberOfLines={1} style={{ flex: 1, ...Fonts.blackColor16Medium }}>
-                            {item.driverName}
+                            {item.firstName} {item.lastName}
                         </Text>
-                        <View style={{ marginLeft: Sizes.fixPadding - 5.0, flexDirection: 'row', alignItems: 'center' }}>
-                            {showRating({ number: item.rating })}
-                            <Text style={{ marginLeft: Sizes.fixPadding - 7.0, ...Fonts.grayColor11SemiBold }}>
-                                ({item.ratingCount})
-                            </Text>
-                        </View>
                     </View>
-                    <Text style={{ marginBottom: Sizes.fixPadding - 2.0, marginTop: Sizes.fixPadding - 7.0, ...Fonts.grayColor14Medium }}>
-                        {item.serviceName}
-                    </Text>
-                  
                 </View>
             </TouchableOpacity>
-        )
+        );
+        
+
         return (
             <FlatList
-                data={driversList}
+                data={drivers}
                 keyExtractor={(item) => `${item.id}`}
                 renderItem={renderItem}
                 showsVerticalScrollIndicator={false}
-               
             />
-        )
+        );
     }
 
     function header() {
         return (
             <View style={styles.headerWrapStyle}>
-            
                 <Text numberOfLines={1} style={{ maxWidth: width - 70, ...Fonts.blackColor20Bold }}>
-                   Drivers
+                    Drivers
                 </Text>
-                <TouchableOpacity   onPress={() => { navigation.push('StaffAppointmentScreen')}} >
-                <Text style={{fontSize:17}}>All Bookings</Text>
-            </TouchableOpacity>
+                <TouchableOpacity onPress={() => { navigation.push('StaffAppointmentScreen') }}>
+                    <Text style={{ fontSize: 17 }}>All Bookings</Text>
+                </TouchableOpacity>
             </View>
         );
     }
 }
 
-export default DriversScreen
+export default DriversScreen;
 
 const styles = StyleSheet.create({
-    docorInfoWrapStyle: {
+    driverInfoWrapStyle: {
         backgroundColor: Colors.whiteColor,
         paddingHorizontal: Sizes.fixPadding * 2.0,
         paddingBottom: Sizes.fixPadding + 8.0,
-        paddingTop: Sizes.fixPadding * 2.0,
+        paddingTop: Sizes.fixPadding,
         marginBottom: Sizes.fixPadding,
         flexDirection: 'row',
-        alignItems: 'center'
+        alignItems: 'center',marginTop:2,
     },
     driverImageBackgroundStyle: {
         borderRadius: Sizes.fixPadding - 5.0,
@@ -174,16 +105,32 @@ const styles = StyleSheet.create({
     },
     driverImageStyle: {
         width: (width / 4.7) - 15.0,
-        height: '100%',
-        resizeMode: 'fill',
+        height: '90%',
+        resizeMode: 'cover',
         position: 'absolute',
-        bottom: 0.0,
+        bottom: 0.0,borderRadius: Sizes.fixPadding - 5.0,
     },
     headerWrapStyle: {
         backgroundColor: Colors.whiteColor,
-        display:'flex',flexDirection:'row',
+        display: 'flex',
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: Sizes.fixPadding * 2.0,
     },
-})
+    noDriversFoundContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    noDriversFoundText: {
+        ...Fonts.blackColor16Medium,
+        color: Colors.grayColor,
+    },
+    errorText: {
+        ...Fonts.blackColor16Medium,
+        color: Colors.redColor,
+        textAlign: 'center',
+        marginTop: 20,
+    },
+});

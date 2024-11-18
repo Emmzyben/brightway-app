@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const useGetAllAttendanceRecords = () => {
   const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
 
@@ -21,27 +21,33 @@ const useGetAllAttendanceRecords = () => {
     if (userId) {
       const attendanceRef = ref(database, `attendanceTable/${userId}`);
 
-      const unsubscribe = onValue(attendanceRef, (snapshot) => {
-        setLoading(true);
-        setError(null);
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          const attendanceRecords = [];
+      const unsubscribe = onValue(
+        attendanceRef,
+        (snapshot) => {
+          setLoading(true);
+          setError(null);
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            const attendanceRecords = Object.keys(data).map((key) => ({
+              id: key,
+              ...data[key],
+            }));
 
-          Object.keys(data).forEach((key) => {
-            attendanceRecords.push({ id: key, ...data[key] });
-          });
+            // Sort records by latest (assuming each record has a timestamp field)
+            attendanceRecords.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-          setRecords(attendanceRecords);
-        } else {
-          setRecords([]); 
+            setRecords(attendanceRecords);
+          } else {
+            setRecords([]);
+          }
+          setLoading(false);
+        },
+        (error) => {
+          console.error("Error fetching attendance records:", error.message || error);
+          setError("Failed to fetch attendance records");
+          setLoading(false);
         }
-        setLoading(false);
-      }, (error) => {
-        console.error("Error fetching attendance records:", error.message || error);
-        setError("Failed to fetch attendance records");
-        setLoading(false);
-      });
+      );
 
       return () => unsubscribe();
     }

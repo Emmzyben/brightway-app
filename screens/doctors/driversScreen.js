@@ -33,7 +33,7 @@ const DriversScreen = ({ navigation }) => {
             <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => { 
-    console.log("Navigating to BookDriver with driverId:", item.id); 
+    console.log("Navigating to BookDriver with driverId:", item.id);
     navigation.push('BookDriver', { 
         driverId: item.id, 
         driverName: `${item.firstName} ${item.lastName}`, 

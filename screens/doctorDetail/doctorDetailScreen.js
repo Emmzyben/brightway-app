@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, Image, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
-import React, { useEffect,useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Colors, Fonts, Sizes } from '../../constants/styles';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Snackbar } from 'react-native-paper';
@@ -42,16 +42,18 @@ const DoctorDetailScreen = ({ navigation, route }) => {
                     {aboutDoctor()}
                 </ScrollView>
             </View>
-            {bookAppintmentButton()}
+            {bookAppointmentButton()}
             {snackbar()}
         </View>
     );
 
-    function bookAppintmentButton() {
+   
+
+    function bookAppointmentButton() {
         return (
             <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => { 
+                onPress={() => {
                     if (user) {
                         navigation.push('BookAppointment', { email: user.email, username: user.username });
                     }
@@ -64,16 +66,18 @@ const DoctorDetailScreen = ({ navigation, route }) => {
             </TouchableOpacity>
         );
     }
-    
 
     function aboutDoctor() {
         return (
             <View style={{ backgroundColor: Colors.whiteColor, padding: Sizes.fixPadding * 2.0 }}>
-            <Text style={{ marginBottom: Sizes.fixPadding + 5.0,...Fonts.grayColor17Medium}}>
-                    Email: {user?.email || 'No bio available.'}
+            <Text style={{ ...Fonts.blackColor18SemiBold, marginBottom: Sizes.fixPadding + 5.0 }}>
+                    Contact
                 </Text>
-                <Text style={{  marginBottom: Sizes.fixPadding + 5.0,...Fonts.grayColor17Medium}}>
-                    Phone: {user?.mobileNumber || 'No bio available.'}
+                <Text style={{ marginBottom: Sizes.fixPadding + 5.0, ...Fonts.grayColor17Medium }}>
+                    Email: {user?.email || 'N/A'}
+                </Text>
+                <Text style={{ marginBottom: Sizes.fixPadding + 5.0, ...Fonts.grayColor17Medium }}>
+                    Phone: {user?.mobileNumber || 'N/A'}
                 </Text>
             </View>
         );
@@ -81,7 +85,7 @@ const DoctorDetailScreen = ({ navigation, route }) => {
 
     function Detail() {
         return (
-            <View style={{ backgroundColor: Colors.whiteColor, padding: Sizes.fixPadding * 2.0 ,marginBottom:10}}>
+            <View style={{ backgroundColor: Colors.whiteColor, padding: Sizes.fixPadding * 2.0, marginBottom: 10 }}>
                 <Text style={{ ...Fonts.blackColor18SemiBold, marginBottom: Sizes.fixPadding + 5.0 }}>
                     Provider Bio
                 </Text>
@@ -94,13 +98,10 @@ const DoctorDetailScreen = ({ navigation, route }) => {
 
     function doctorInfo() {
         return (
-            <TouchableOpacity
-                activeOpacity={0.8}
-                style={styles.doctorInfoWrapStyle}
-            >
-                <View style={{ ...styles.doctorImageBackgroundStyle }}>
+            <TouchableOpacity activeOpacity={0.8} style={styles.doctorInfoWrapStyle}>
+                <View style={styles.doctorImageBackgroundStyle}>
                     <Image
-                        source={user?.profile_picture ? { uri: user.profile_picture } : require('../../assets/images/user.png')} 
+                        source={user?.profile_picture ? { uri: user.profile_picture } : require('../../assets/images/user.png')}
                         style={styles.doctorImageStyle}
                     />
                 </View>
@@ -115,13 +116,12 @@ const DoctorDetailScreen = ({ navigation, route }) => {
             </TouchableOpacity>
         );
     }
-    
 
     function snackbar() {
         return (
             <Snackbar
                 visible={showSnackBar}
-                onDismiss={() => { setshowSnackBar(false) }}
+                onDismiss={() => setshowSnackBar(false)}
                 elevation={0.0}
             >
                 <Text style={{ ...Fonts.whiteColor14Medium }}>
@@ -134,7 +134,7 @@ const DoctorDetailScreen = ({ navigation, route }) => {
     function header() {
         return (
             <View style={styles.headerWrapStyle}>
-                <MaterialIcons name="arrow-back" size={24} color={Colors.blackColor} onPress={() => { navigation.pop() }} />
+                <MaterialIcons name="arrow-back" size={24} color={Colors.blackColor} onPress={() => navigation.pop()} />
                 <Text>Provider Detail</Text>
                 <MaterialIcons
                     size={24}
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.purpleColor,
     },
     doctorImageStyle: {
-      height: 110,
+        height: 110,
         width: width / 3.5,
         resizeMode: 'stretch',
         position: 'absolute',

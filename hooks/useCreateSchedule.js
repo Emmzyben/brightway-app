@@ -17,7 +17,6 @@ const useCreateSchedule = () => {
 
     // Validate input fields
     if (
-      !scheduleDetails.scheduleDate || 
       !scheduleDetails.scheduleFromTime || 
       !scheduleDetails.scheduleToTime || 
       !scheduleDetails.providerId

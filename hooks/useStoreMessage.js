@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { database } from "../firebase/firebase";
-import { ref, set, push } from "firebase/database";
+import { ref, set, push, update } from "firebase/database";
 import shortid from 'shortid';
 import useFetchUserDetails from "./useFetchUserDetails";
 
@@ -27,20 +27,13 @@ const useStoreMessage = () => {
         throw new Error("User details are not available");
       }
 
-      console.log("Storing message:", {
-        conversationId,
-        message,
-        participant1Id,
-        timestamp,
-      });
-
       if (!conversationId || !message || !participant1Id) {
         throw new Error("Missing necessary information to store the message");
       }
 
       const { firstName: senderFirstName, lastName: senderLastName, id: senderId } = userDetails;
 
-      const messageId = generateUniqueId(); 
+      const messageId = generateUniqueId();
       const messageData = {
         messageId,
         conversationId,
@@ -52,10 +45,18 @@ const useStoreMessage = () => {
         timestamp,
       };
 
+      // Store the message in the conversation's messages list
       const messageRef = ref(database, `messages/${conversationId}`);
-      await push(messageRef, messageData); 
+      await push(messageRef, messageData);
 
-      console.log("Message stored successfully");
+      // Update only the lastMessage and timestamp fields for the conversation
+      const conversationRef = ref(database, `conversations/${conversationId}`);
+      await update(conversationRef, {
+        lastMessage: message,
+        timestamp,
+      });
+
+      console.log("Message and lastMessage updated successfully");
 
       return { success: true, messageId, messageData };
     } catch (err) {

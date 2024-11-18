@@ -18,15 +18,13 @@ import Loader from "../../components/activityLoader";
 const { width } = Dimensions.get("window");
 
 const ProviderSchedule = ({ navigation }) => {
-  const [selectedDate, setSelectedDate] = useState(null);
   const [selectedFromTime, setSelectedFromTime] = useState(null);
   const [selectedToTime, setSelectedToTime] = useState(null);
-  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [isFromTimePickerVisible, setFromTimePickerVisibility] = useState(false);
   const [isToTimePickerVisible, setToTimePickerVisibility] = useState(false);
   const [userId, setUserId] = useState(null);
 
-  const { createSchedule, loading, error } = useCreateSchedule(); // Using the hook
+  const { createSchedule, loading, error } = useCreateSchedule();
 
   useEffect(() => {
     const getUserId = async () => {
@@ -35,14 +33,6 @@ const ProviderSchedule = ({ navigation }) => {
     };
     getUserId();
   }, []);
-
-  const showDatePicker = () => setDatePickerVisibility(true);
-  const hideDatePicker = () => setDatePickerVisibility(false);
-
-  const handleConfirmDate = (date) => {
-    setSelectedDate(moment(date).format("DD MMM YYYY"));
-    hideDatePicker();
-  };
 
   const showFromTimePicker = () => setFromTimePickerVisibility(true);
   const hideFromTimePicker = () => setFromTimePickerVisibility(false);
@@ -61,11 +51,9 @@ const ProviderSchedule = ({ navigation }) => {
   };
 
   const handleSubmit = async () => {
-    if (selectedDate && selectedFromTime && selectedToTime && userId) {
-      // Validate that From time is before To time
+    if (selectedFromTime && selectedToTime && userId) {
       if (moment(selectedFromTime, "hh:mm A").isBefore(moment(selectedToTime, "hh:mm A"))) {
         const scheduleDetails = {
-          scheduleDate: selectedDate,
           scheduleFromTime: selectedFromTime,
           scheduleToTime: selectedToTime,
           providerId: userId,
@@ -73,11 +61,9 @@ const ProviderSchedule = ({ navigation }) => {
 
         const success = await createSchedule(scheduleDetails);
         if (success) {
-          // Reset fields after successful creation
-          setSelectedDate(null);
           setSelectedFromTime(null);
           setSelectedToTime(null);
-          navigation.navigate("Schedules"); // Use navigate instead of push
+          navigation.navigate("Schedules");
         } else {
           alert(error || "Error creating schedule");
         }
@@ -95,7 +81,6 @@ const ProviderSchedule = ({ navigation }) => {
       <View style={{ flex: 1 }}>
         {header()}
         <ScrollView showsVerticalScrollIndicator={false} automaticallyAdjustKeyboardInsets={true}>
-          {selectDate()}
           {selectFromTime()}
           {selectToTime()}
         </ScrollView>
@@ -166,29 +151,6 @@ const ProviderSchedule = ({ navigation }) => {
     );
   }
 
-  function selectDate() {
-    return (
-      <View style={styles.dateContainer}>
-        <Text style={styles.dateTitle}>Select Date</Text>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={showDatePicker}
-          style={styles.dateWrapStyle}
-        >
-          <Text style={selectedDate ? styles.dateText : styles.placeholderText}>
-            {selectedDate ? selectedDate : "Select Date"}
-          </Text>
-        </TouchableOpacity>
-        <DateTimePickerModal
-          isVisible={isDatePickerVisible}
-          mode="date"
-          onConfirm={handleConfirmDate}
-          onCancel={hideDatePicker}
-        />
-      </View>
-    );
-  }
-
   function header() {
     return (
       <View style={styles.headerWrapStyle}>
@@ -199,7 +161,7 @@ const ProviderSchedule = ({ navigation }) => {
         </View>
         <View style={{marginTop:5}}>
           <TouchableOpacity onPress={() => navigation.navigate("Schedules")}>
-            <Text style={{fontSize:15}}>All Schedules</Text>
+            <Text style={{fontSize:15}}>My schedule</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -216,17 +178,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: Sizes.fixPadding * 2.0,
   },
-  dateContainer: {
-    padding: Sizes.fixPadding * 2.0,
-  },
   timeContainer: {
     padding: Sizes.fixPadding * 2.0,
-  },
-  dateWrapStyle: {
-    backgroundColor: Colors.whiteColor,
-    padding: Sizes.fixPadding + 2.0,
-    marginTop: Sizes.fixPadding,
-    borderRadius: Sizes.fixPadding - 5.0,
   },
   timeWrapStyle: {
     backgroundColor: Colors.whiteColor,

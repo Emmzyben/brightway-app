@@ -8,6 +8,7 @@ import useUpdateAppointmentStatus from '../../hooks/useUpdateAppointmentStatus';
 import Successfull from '../../components/successfull';
 import useCreateConversation from '../../hooks/useCreateConversation';
 
+
 const { width } = Dimensions.get('window');
 
 const AppointmentDetailScreen = ({ navigation, route }) => {
@@ -17,7 +18,64 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
     const [showSuccess, setShowSuccess] = useState(false);
     const { createConversation, loading: loadingConversation, error } = useCreateConversation();
 
+    const handleDelete = () => {
+        Alert.alert(
+            "Delete",
+            "Are you sure you want to delete?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "OK", onPress: () => deleteSchedule2(appointmentId) }  
+            ]
+        );
+    };
+    const handleReschedule = () => {
+        Alert.alert(
+            "Reschedule",
+            "Are you sure you want to reschedule?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "OK", onPress: () => deleteSchedule(appointmentId) }  
+            ]
+        );
+    };
+    const deleteSchedule = async (appointmentId) => {
+        try {
+            console.log("Deleting schedule for appointment ID:", appointmentId);
+            if (typeof appointmentId !== 'string') {
+                throw new Error("Invalid appointmentId format");
+            }
     
+             await changeStatus(appointmentId, 'deleted');
+    
+            if (appointmentDetails?.providerEmail && appointmentDetails?.ProviderUsername) {
+                navigation.push('DoctorDetail', { 
+                    email: appointmentDetails.providerEmail, 
+                    username: appointmentDetails.ProviderUsername 
+                });
+            } else {
+                console.warn("Appointment details missing; unable to navigate with email and username.");
+            }
+        } catch (err) {
+            console.error("Failed to reschedule:", err);
+            Alert.alert("Error", "Failed to reschedule.");
+        }
+    };
+  const deleteSchedule2 = async (appointmentId) => {
+        try {
+            const success = await changeStatus(appointmentId, 'deleted');
+            if (success) {
+                setShowSuccess(true); 
+            } else {
+                Alert.alert('Error', 'Failed to delete the appointment'); 
+            }
+        } catch (error) {
+            console.error("Error in handleCancel:", error);
+        }
+    };
+
+   
+    
+
     const handleCancel = async () => {
         try {
             const success = await changeStatus(appointmentId, 'cancelled');
@@ -96,11 +154,22 @@ const AppointmentDetailScreen = ({ navigation, route }) => {
                     <>
                         <ButtonComponent 
                             title="Reschedule" 
-                            onPress={() => { navigation.push('DoctorDetail', { email: appointmentDetails?.providerEmail, username: appointmentDetails?.ProviderUsername }) }} 
+                            onPress={handleReschedule} 
                             loading={loadingStatus} 
                             backgroundColor="grey" 
                         />
                         {renderChatButton()}
+                    </>
+                )}
+
+                {appointmentStatus === 'completed' && (
+                    <>
+                        <ButtonComponent 
+                            title="delete" 
+                            onPress={handleDelete} 
+                            loading={loadingStatus} 
+                            backgroundColor={Colors.redColor} 
+                        />
                     </>
                 )}
 

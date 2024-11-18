@@ -69,12 +69,10 @@ const Schedules = ({ navigation }) => {
                 <View style={{ flex: 1, marginLeft: Sizes.fixPadding + 2.0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text numberOfLines={1} style={{ flex: 1, ...Fonts.blackColor16Medium }}>
-                         Schedule Date: {item.scheduleDate}
+                        Available From: {item.scheduleFromTime}
                         </Text>
                     </View>
-                    <Text style={{ marginBottom: Sizes.fixPadding - 2.0, marginTop: Sizes.fixPadding - 7.0, ...Fonts.grayColor14Medium }}>
-                        Available From: {item.scheduleFromTime}
-                    </Text>
+                  
                     <Text style={{ marginBottom: Sizes.fixPadding - 2.0, marginTop: Sizes.fixPadding - 7.0, ...Fonts.grayColor14Medium }}>
                        Available To: {item.scheduleToTime}
                     </Text>
@@ -104,7 +102,7 @@ const Schedules = ({ navigation }) => {
         return (
             <View style={styles.headerWrapStyle}>
                 <MaterialIcons name="arrow-back" size={24} color={Colors.blackColor} onPress={() => { navigation.pop() }} />
-                <Text>Schedules</Text>
+                <Text>My Schedule</Text>
                 <MaterialIcons
                     size={24}
                     color={Colors.blackColor}

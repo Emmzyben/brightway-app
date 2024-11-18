@@ -55,7 +55,7 @@ useEffect(() => {
         setLoading(true);
     
         // Check for necessary fields
-        if (!selectedPatient || !date || !time || !destination || !service || !driverId) {
+        if (!selectedPatient || !date || !time || !destination || !driverId) {
             Alert.alert('Error', 'All fields are required!');
             setLoading(false);
             return;

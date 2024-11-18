@@ -198,7 +198,7 @@ const StaffAppointmentScreen = ({ navigation }) => {
                     Tranport Bookings
                 </Text>
                 <MaterialIcons name="arrow-back" size={24} color={Colors.blackColor} style={{ position: 'absolute', left: 20.0 }} onPress={() => { 
-                    navigation.push('DriversScreen'); 
+                    navigation.push('StaffBottomTabBar'); 
                 }}  />
             </View>
         )

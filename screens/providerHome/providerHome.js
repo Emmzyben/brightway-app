@@ -53,7 +53,7 @@ const ProviderHome = ({ navigation }) => {
         }
     }, [userDetails]);
 
-const upcomingAppointments = appointments.filter(item => item.status === 'pending' || 'comfirmed');
+    const upcomingAppointments = appointments.filter(item => ['pending', 'confirmed'].includes(item.status));
   
 
     return (
@@ -204,7 +204,7 @@ const upcomingAppointments = appointments.filter(item => item.status === 'pendin
         return (
             <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => { navigation.push('AppointmentDetail', { appointmentId: item.appointmentId }) }}
+                onPress={() => { navigation.push('ProviderAppointmentDetail', { appointmentId: item.appointmentId }) }}
                 style={styles.hospitalInfoWrapStyle}
             >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>

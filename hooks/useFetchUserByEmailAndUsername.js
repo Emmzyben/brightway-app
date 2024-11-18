@@ -4,6 +4,7 @@ import { database } from '../firebase/firebase';
 
 const useFetchUserByEmailAndUsername = (email, username) => {
   const [user, setUser] = useState(null);
+  const [providerId, setProviderId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -19,10 +20,14 @@ const useFetchUserByEmailAndUsername = (email, username) => {
 
         if (snapshot.exists()) {
           const users = snapshot.val();
-          const filteredUsers = Object.values(users).filter(user => user.username === username);
+          const filteredUser = Object.entries(users).find(
+            ([key, user]) => user.username === username
+          );
 
-          if (filteredUsers.length > 0) {
-            setUser(filteredUsers[0]); 
+          if (filteredUser) {
+            const [key, userData] = filteredUser;
+            setUser(userData);
+            setProviderId(key);
           } else {
             setError('No user found with the provided email and username');
           }
@@ -42,7 +47,7 @@ const useFetchUserByEmailAndUsername = (email, username) => {
     }
   }, [email, username]);
 
-  return { user, loading, error };
+  return { user, providerId, loading, error };
 };
 
 export default useFetchUserByEmailAndUsername;

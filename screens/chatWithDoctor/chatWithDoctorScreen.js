@@ -1,15 +1,4 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-  Image,
-  Dimensions,
-  FlatList,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-} from "react-native";
+import { StyleSheet, Text, View, Image, Dimensions, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
 import React, { useState, useEffect } from "react";
 import { Colors, Fonts, Sizes } from "../../constants/styles";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -60,28 +49,29 @@ const ChatWithDoctorScreen = ({ route, navigation }) => {
 
   // Function to send a new message
   const sendMessage = async () => {
-    if (message.trim() === "") return; // Prevent sending empty messages
-
-    const timestamp = new Date().toISOString(); // Timestamp for the message
-
+    if (message.trim() === "") return;
+  
+    const timestamp = new Date().toISOString();
+    
     const newMessage = {
       conversationId,
       message,
-      participant1Id,
-      participant2Id,
+      senderId: loggedInUserId, // Set senderId to loggedInUserId here
+      receiverId: participant2Id, // Optionally include receiverId if needed
       timestamp,
     };
-
-    // Store the message in the database
-    const { success } = await storeMessage(conversationId, message, participant1Id, timestamp);
-
+  
+    const { success } = await storeMessage(conversationId, message, loggedInUserId, timestamp);
+  
     if (success) {
-      setMessage(""); // Clear input field if successful
+      setMessagesList((prevMessages) => [newMessage, ...prevMessages]);
+      setMessage("");
     } else {
       console.log("Failed to store message");
     }
   };
-
+  
+  
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : null}
@@ -102,65 +92,64 @@ const ChatWithDoctorScreen = ({ route, navigation }) => {
     </KeyboardAvoidingView>
   );
 
-function Messages() {
-  const renderItem = ({ item, index }) => (
-    <View
-      style={{
-        alignItems: item.senderId === loggedInUserId ? "flex-end" : "flex-start", // Align items based on sender
-        marginHorizontal: Sizes.fixPadding * 3.0,
-        marginBottom:
-          index !== messagesList.length - 1 &&
-          messagesList[index].senderId === messagesList[index + 1].senderId
-            ? Sizes.fixPadding - 2.0
-            : Sizes.fixPadding * 2.5,
-      }}
-    >
-      <View style={{ flexDirection: item.senderId === loggedInUserId ? "row-reverse" : "row", alignItems: "flex-start" }}>
-        {item.senderId !== loggedInUserId ? (
-          <View style={{ marginRight: Sizes.fixPadding }}>
-            <Image
-              source={{ uri: participant2_picture }}
-              style={styles.receiverImageStyle}
-            />
-          </View>
-        ) : null}
-        <View
-          style={{
-            ...styles.messageWrapStyle,
-            backgroundColor:
-              item.senderId === loggedInUserId ? Colors.primaryColor : Colors.whiteColor, // Change colors
-          }}
-        >
-          <Text
-            style={
-              item.senderId === loggedInUserId
-                ? { ...Fonts.whiteColor14Medium }
-                : { ...Fonts.blackColor14Medium }
-            }
+  function Messages() {
+    const renderItem = ({ item, index }) => (
+      <View
+        style={{
+          alignItems: item.senderId === loggedInUserId ? "flex-end" : "flex-start",
+          marginHorizontal: Sizes.fixPadding * 3.0,
+          marginBottom:
+            index !== messagesList.length - 1 &&
+            messagesList[index].senderId === messagesList[index + 1].senderId
+              ? Sizes.fixPadding - 2.0
+              : Sizes.fixPadding * 2.5,
+        }}
+      >
+        <View style={{ flexDirection: item.senderId === loggedInUserId ? "row-reverse" : "row", alignItems: "flex-start" }}>
+          {item.senderId !== loggedInUserId ? (
+            <View style={{ marginRight: Sizes.fixPadding }}>
+              <Image
+                source={{ uri: participant2_picture }}
+                style={styles.receiverImageStyle}
+              />
+            </View>
+          ) : null}
+          <View
+            style={{
+              ...styles.messageWrapStyle,
+              backgroundColor: item.senderId === loggedInUserId ? Colors.primaryColor : Colors.whiteColor,
+            }}
           >
-            {item.message}
-          </Text>
+            <Text
+              style={
+                item.senderId === loggedInUserId
+                  ? { ...Fonts.whiteColor14Medium }
+                  : { ...Fonts.blackColor14Medium }
+              }
+            >
+              {item.message}
+            </Text>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+    
 
-  return (
-    <FlatList
-      inverted
-      data={messagesList}
-      keyExtractor={(item) => `${item.timestamp}-${item.senderId}`} 
-      renderItem={renderItem}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{
-        flexDirection: "column-reverse",
-        paddingBottom: Sizes.fixPadding * 2.0,
-        
-      }}
-    />
-  );
-}
-
+    return (
+      <FlatList
+        inverted
+        data={messagesList}
+        keyExtractor={(item) => `${item.timestamp}-${item.senderId}`}
+        renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          flexDirection: "column-reverse",
+          paddingBottom: Sizes.fixPadding * 9.0, 
+          paddingTop: Sizes.fixPadding * 6.0,
+        }}
+      />
+    );
+  }
 
   function typeMessage() {
     return (

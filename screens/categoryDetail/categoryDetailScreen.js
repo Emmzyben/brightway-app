@@ -63,7 +63,7 @@ const CategoryDetailScreen = ({ navigation, route }) => {
 
         return (
             <FlatList
-                data={providers} // Use the providers array from the hook
+                data={providers} 
                 keyExtractor={(item, index) => `${index}`}
                 renderItem={renderItem}
                 showsVerticalScrollIndicator={false}

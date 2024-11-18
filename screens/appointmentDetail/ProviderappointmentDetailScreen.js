@@ -31,6 +31,21 @@ const ProviderAppointmentDetailScreen = ({ navigation, route }) => {
         await handleStatusChange('completed', 'Failed to complete the appointment');
     };
 
+    const handleDelete = () => {
+        Alert.alert(
+            "Delete",
+            "Are you sure you want to delete?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "OK", onPress: () => deleteSchedule2() }  
+            ]
+        );
+    };
+
+    const deleteSchedule2 = async () => {
+        await handleStatusChange('deleted', 'Failed to delete the appointment');
+    };
+
     const handleStatusChange = async (status, errorMsg) => {
         try {
             const success = await changeStatus(appointmentId, status);
@@ -85,7 +100,7 @@ const ProviderAppointmentDetailScreen = ({ navigation, route }) => {
             ) : (
                 <>
                     <MaterialIcons name='chat' color={Colors.whiteColor} size={20} />
-                    <Text numberOfLines={1} style={{ marginLeft: Sizes.fixPadding + 5.0, ...Fonts.whiteColor17Bold }}>Chat</Text>
+                    <Text style={{fontSize:15,color:'#fff',fontWeight:'bold',marginLeft:5}}>Chat</Text>
                 </>
             )}
         </TouchableOpacity>
@@ -114,6 +129,30 @@ const ProviderAppointmentDetailScreen = ({ navigation, route }) => {
                         </View>
                     </>
                 )}
+                {appointmentStatus === 'completed' && (
+                    <>
+                    <View style={{ flexDirection: 'row', borderTopColor: Colors.bodyBackColor, borderTopWidth: 1.0 }}>
+                        <ButtonComponent 
+                            title="delete" 
+                            onPress={handleDelete} 
+                            loading={loadingStatus} 
+                            backgroundColor={Colors.redColor} 
+                        />
+                        </View>
+                    </>
+                )}
+                {appointmentStatus === 'cancelled' && (
+                    <>
+                    <View style={{ flexDirection: 'row', borderTopColor: Colors.bodyBackColor, borderTopWidth: 1.0 }}>
+                        <ButtonComponent 
+                            title="delete" 
+                            onPress={handleDelete} 
+                            loading={loadingStatus} 
+                            backgroundColor={Colors.redColor} 
+                        />
+                        </View>
+                    </>
+                )}
             </View>
             
         );
@@ -121,7 +160,7 @@ const ProviderAppointmentDetailScreen = ({ navigation, route }) => {
 
     const ButtonComponent = ({ title, onPress, loading, backgroundColor }) => (
         <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={{ backgroundColor, ...styles.smallButtonStyle }} disabled={loading}>
-            <Text style={{ ...Fonts.whiteColor17Bold }}>{title}</Text>
+            <Text style={{fontSize:14,color:'#fff',fontWeight:'bold'}}>{title}</Text>
         </TouchableOpacity>
     );
 
@@ -253,7 +292,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: Sizes.fixPadding * 2.0,
+        padding: 14,
         margin: 5,
         borderRadius: 10,
     },
@@ -262,7 +301,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: Sizes.fixPadding * 2.0,
+        padding: 14,
         margin: 5,
         borderRadius: 10,
     },

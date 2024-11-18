@@ -11,15 +11,19 @@ const useFetchUserAppointments = () => {
   const fetchUserDetails = async (userId) => {
     return new Promise((resolve, reject) => {
       const userRef = ref(database, `users_table/${userId}`);
-      onValue(userRef, (snapshot) => {
-        if (snapshot.exists()) {
-          resolve(snapshot.val());
-        } else {
-          resolve(null);
+      onValue(
+        userRef,
+        (snapshot) => {
+          if (snapshot.exists()) {
+            resolve(snapshot.val());
+          } else {
+            resolve(null);
+          }
+        },
+        (error) => {
+          reject(error);
         }
-      }, (error) => {
-        reject(error);
-      });
+      );
     });
   };
 
@@ -32,7 +36,7 @@ const useFetchUserAppointments = () => {
         setError(null);
 
         const userId = await AsyncStorage.getItem("userId");
-        console.log("User ID from AsyncStorage:", userId); 
+        console.log("User ID from AsyncStorage:", userId);
 
         if (userId) {
           const appointmentsRef = ref(database, "driver_booking");
@@ -47,24 +51,31 @@ const useFetchUserAppointments = () => {
             async (snapshot) => {
               if (snapshot.exists()) {
                 const appointmentsData = snapshot.val();
-                console.log("Appointments data:", appointmentsData); 
+                console.log("Appointments data:", appointmentsData);
 
                 const appointmentsArray = await Promise.all(
                   Object.keys(appointmentsData).map(async (key) => {
                     const appointment = { id: key, ...appointmentsData[key] };
 
                     // Directly fetch patient and staff details
-                    const patientId = appointment.patientid ? appointment.patientid.split(" ")[0] : null;
+                    const patientId = appointment.patientid
+                      ? appointment.patientid.split(" ")[0]
+                      : null;
                     const staffId = appointment.staffId ? appointment.staffId : null;
 
-                    const patientDetails = patientId ? await fetchUserDetails(patientId) : null;
-                    console.log("Patient details:", patientDetails); // Debug log
-                    
-                    const staffDetails = staffId ? await fetchUserDetails(staffId) : null;
-                    console.log("Staff details:", staffDetails); // Debug log
+                    const patientDetails = patientId
+                      ? await fetchUserDetails(patientId)
+                      : null;
+                    console.log("Patient details:", patientDetails);
+
+                    const staffDetails = staffId
+                      ? await fetchUserDetails(staffId)
+                      : null;
+                    console.log("Staff details:", staffDetails);
 
                     return {
                       ...appointment,
+                      appointmentId: key, // Add appointmentId here
                       patient_firstName: patientDetails?.firstName || "Unknown",
                       patient_lastName: patientDetails?.lastName || "Unknown",
                       patientProfilePicture: patientDetails?.profile_picture || null,
@@ -76,7 +87,7 @@ const useFetchUserAppointments = () => {
                 );
 
                 setAppointments(appointmentsArray);
-                console.log("Fetched appointments:", appointmentsArray); // Debug log
+                console.log("Fetched appointments:", appointmentsArray);
               } else {
                 console.log("No appointments found for the user");
                 setAppointments([]);

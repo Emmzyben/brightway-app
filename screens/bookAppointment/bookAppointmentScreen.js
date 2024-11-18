@@ -1,14 +1,5 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-  Dimensions,
-  ScrollView,
-  TextInput,
-  Image,
-  TouchableOpacity,
-} from "react-native";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { StyleSheet, Text, View, Dimensions, ScrollView, TextInput, Image, TouchableOpacity } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Colors, Fonts, Sizes } from "../../constants/styles";
 import MyStatusBar from "../../components/myStatusBar";
@@ -16,18 +7,20 @@ import useFetchUserByEmailAndUsername from '../../hooks/useFetchUserByEmailAndUs
 import useBookProvider from "../../hooks/useBookProvider";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import moment from "moment";
-
+import { Picker } from "@react-native-picker/picker";
+import useGetProviderSchedules from "../../hooks/useGetProviderSchedule";
 const { width } = Dimensions.get("window");
 
 const BookAppointmentScreen = ({ navigation, route }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-  const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
   const [reason, setReason] = useState("");
-  const { email, username } = route.params; 
-  const { user, loading: userLoading, error: userError } = useFetchUserByEmailAndUsername(email, username);
+  const { email, username } = route.params;
+
+  const { user, providerId, loading: userLoading, error: userError } = useFetchUserByEmailAndUsername(email, username);
   const { bookAppointment, loading: bookingLoading, error: bookingError } = useBookProvider();
+  const { schedules, loading: schedulesLoading, error: schedulesError } = useGetProviderSchedules(providerId);
 
   const showDatePicker = () => {
     setDatePickerVisibility(true);
@@ -39,34 +32,25 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
   const handleConfirmDate = (date) => {
     setSelectedDate(moment(date).format("DD MMM YYYY"));
-    hideDatePicker();
-  };
-
-  const showTimePicker = () => {
-    setTimePickerVisibility(true);
+    hideDatePicker();   
   };
 
   const hideTimePicker = () => {
     setTimePickerVisibility(false);
   };
 
-  const handleConfirmTime = (time) => {
-    setSelectedTime(moment(time).format("hh:mm A"));
-    hideTimePicker();
-  };
-
   const handleSubmit = async () => {
     if (selectedDate && selectedTime && reason) {
       const appointmentDetails = {
-        providerEmail:email,
-        ProviderUsername:username,
+        providerEmail: email,
+        providerUsername: username,
         bookDate: selectedDate,
         bookTime: selectedTime,
         reason,
-        service:user.services,
-        providerProfile_picture:user.profile_picture,
-        providerFirstName: user.firstName,
-        providerLastName:user.lastName
+        service: user?.services,
+        providerProfile_picture: user?.profile_picture,
+        providerFirstName: user?.firstName,
+        providerLastName: user?.lastName
       };
 
       const success = await bookAppointment(appointmentDetails); 
@@ -100,16 +84,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
         mode="date"
         onConfirm={handleConfirmDate}
         onCancel={hideDatePicker}
-        date={new Date()} // Current date
-      />
-
-      {/* Time Picker */}
-      <DateTimePickerModal
-        isVisible={isTimePickerVisible}
-        mode="time"
-        onConfirm={handleConfirmTime}
-        onCancel={hideTimePicker}
-        date={new Date()} // Current time
+        date={new Date()}
       />
     </View>
   );
@@ -118,11 +93,11 @@ const BookAppointmentScreen = ({ navigation, route }) => {
     return (
       <TouchableOpacity
         activeOpacity={0.8}
-        onPress={handleSubmit} // Call the handleSubmit function on press
+        onPress={handleSubmit} 
         style={styles.buttonStyle}
       >
         <Text style={{ ...Fonts.whiteColor17Bold }}>
-          {bookingLoading ? "Booking..." : "Confirm Appointment"} {/* Show loading text */}
+          {bookingLoading ? "Booking..." : "Confirm Appointment"}
         </Text>
       </TouchableOpacity>
     );
@@ -151,16 +126,17 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   function selectTime() {
     return (
       <View style={styles.timeContainer}>
-        <Text style={styles.timeTitle}>Select Appointment Time</Text>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={showTimePicker}
-          style={styles.timeWrapStyle}
+        <Text style={styles.timeTitle}>Select a Time Slot</Text>
+        <Picker
+          selectedValue={selectedTime}
+          onValueChange={(itemValue) => setSelectedTime(itemValue)}
+          style={styles.pickerStyle}
         >
-          <Text style={selectedTime ? styles.timeText : styles.placeholderText}>
-            {selectedTime ? selectedTime : "Select Time"}
-          </Text>
-        </TouchableOpacity>
+          <Picker.Item label="Select Time" value={null} />
+          {schedules.map((time, index) => (
+            <Picker.Item key={index} label={time} value={time} />
+          ))}
+        </Picker>
       </View>
     );
   }
@@ -175,7 +151,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
           style={styles.dateWrapStyle}
         >
           <Text style={selectedDate ? styles.dateText : styles.placeholderText}>
-            {selectedDate ? selectedDate : "Select Date"}
+            {selectedDate || "Select Date"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -184,10 +160,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 
   function doctorInfo() {
     return (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        style={styles.doctorInfoWrapStyle}
-      >
+      <TouchableOpacity activeOpacity={0.8} style={styles.doctorInfoWrapStyle}>
         <View style={styles.doctorImageBackgroundStyle}>
           <Image
             source={user?.profile_picture ? { uri: user.profile_picture } : require('../../assets/images/user.png')}
@@ -209,10 +182,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
   function header() {
     return (
       <View style={styles.headerWrapStyle}>
-        <Text
-          numberOfLines={1}
-          style={{ maxWidth: width - 70, ...Fonts.blackColor20Bold }}
-        >
+        <Text numberOfLines={1} style={{ maxWidth: width - 70, ...Fonts.blackColor20Bold }}>
           Select Date & Time
         </Text>
         <MaterialIcons
@@ -220,9 +190,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
           size={24}
           color={Colors.blackColor}
           style={{ position: "absolute", left: 20.0 }}
-          onPress={() => {
-            navigation.pop();
-          }}
+          onPress={() => navigation.pop()}
         />
       </View>
     );
@@ -230,6 +198,7 @@ const BookAppointmentScreen = ({ navigation, route }) => {
 };
 
 export default BookAppointmentScreen;
+
 
 const styles = StyleSheet.create({
   headerWrapStyle: {
@@ -326,5 +295,11 @@ const styles = StyleSheet.create({
   },
   appointmentInfoTitle: {
     ...Fonts.blackColor16Bold,
+  },
+  pickerStyle: {
+    height: 50,
+    marginHorizontal: Sizes.fixPadding * 2.0,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.grayColor,
   },
 });

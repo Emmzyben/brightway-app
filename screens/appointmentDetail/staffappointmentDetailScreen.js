@@ -7,6 +7,8 @@ import useGetAppointmentDetails from '../../hooks/useGetBookingDetails';
 import useUpdateAppointmentStatus from '../../hooks/useUpdateBookingStatus';
 import Successfull from '../../components/successfull';
 import useCreateConversation from '../../hooks/useCreateConversation';
+import { database } from '../../firebase/firebase'; 
+import { ref, remove } from 'firebase/database';
 
 const { width } = Dimensions.get('window');
 
@@ -17,6 +19,69 @@ const StaffAppointmentDetailScreen = ({ navigation, route }) => {
     const [showSuccess, setShowSuccess] = useState(false);
     const { createConversation, loading: loadingConversation, error } = useCreateConversation();
 
+    const handleBook = () => {
+        Alert.alert(
+            "Re-book",
+            "Are you sure you want to book again?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "OK", onPress: () => Rebook(appointmentId) }  
+            ]
+        );
+    };
+    const handleDelete = () => {
+        Alert.alert(
+            "Delete",
+            "Are you sure you want to delete booking?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "OK", onPress: () => Deletebook(appointmentId) }  
+            ]
+        );
+    };
+    const Deletebook= async (appointmentId) => {
+        try {
+            console.log("Deleting schedule for appointment ID:", appointmentId);
+            if (typeof appointmentId !== 'string') {
+                throw new Error("Invalid appointmentId format");
+            }
+    
+            const scheduleRef = ref(database, `driver_booking/${appointmentId}`);
+            await remove(scheduleRef);
+    
+                navigation.push('StaffAppointmentScreen');
+        
+        } catch (err) {
+            console.error("Failed to delete:", err);
+            Alert.alert("Error", "Failed to delete.");
+        }
+    };
+
+    const Rebook= async (appointmentId) => {
+        try {
+            console.log("Deleting schedule for appointment ID:", appointmentId);
+            if (typeof appointmentId !== 'string') {
+                throw new Error("Invalid appointmentId format");
+            }
+    
+            const scheduleRef = ref(database, `driver_booking/${appointmentId}`);
+            await remove(scheduleRef);
+    
+            if (appointmentDetails?.driverId) {
+                console.log("Navigating to BookDriver with driverId:", appointmentDetails.driverId); 
+                navigation.push('BookDriver', { 
+                    driverId: appointmentDetails.driverId, 
+                    driverName: `${appointmentDetails.driverName}`, 
+        profile_picture: appointmentDetails.profile_picture 
+                });
+            } else {
+                console.warn("Appointment details missing");
+            }
+        } catch (err) {
+            console.error("Failed to reschedule:", err);
+            Alert.alert("Error", "Failed to reschedule.");
+        }
+    };
     
     const handleCancel = async () => {
         try {
@@ -96,11 +161,14 @@ const StaffAppointmentDetailScreen = ({ navigation, route }) => {
                     <>
                         <ButtonComponent 
                             title="Reschedule" 
-                            onPress={() => { navigation.push('DoctorDetail', { email: appointmentDetails?.providerEmail, username: appointmentDetails?.ProviderUsername }) }} 
-                            loading={loadingStatus} 
+                            onPress={handleBook} loading={loadingStatus}
                             backgroundColor="grey" 
                         />
-                        {renderChatButton()}
+                         <ButtonComponent 
+                            title="Delete" 
+                            onPress={handleDelete} loading={loadingStatus}
+                            backgroundColor="red" 
+                        />
                     </>
                 )}
 
@@ -159,9 +227,9 @@ const StaffAppointmentDetailScreen = ({ navigation, route }) => {
             {divider()}
                 {appointmentDetailShort({ title: 'Destination', value: appointmentDetails?.destination || 'N/A', icon: 'home' })}
                 {divider()}
-                {appointmentDetailShort({ title: 'Appointment Date & Time', value: `${appointmentDetails?.date || 'N/A'} • ${appointmentDetails?.time || 'N/A'}`, icon: 'timer' })}
+                {appointmentDetailShort({ title: 'Transport Date & Time', value: `${appointmentDetails?.date || 'N/A'} • ${appointmentDetails?.time || 'N/A'}`, icon: 'timer' })}
                 {divider()}
-                {appointmentDetailShort({ title: 'Appointment Status', value: `${appointmentDetails?.status || 'N/A'}`, icon: 'timer' })}
+                {appointmentDetailShort({ title: 'Transport Status', value: `${appointmentDetails?.status || 'N/A'}`, icon: 'timer' })}
            
             </View>
         );

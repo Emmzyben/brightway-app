@@ -17,6 +17,17 @@ import useCreateConversation from '../../hooks/useCreateConversation';
 import Loader from '../../components/activityLoader';
 
 const { width } = Dimensions.get("window");
+const formatTimestamp = (timestamp) => {
+  const date = new Date(timestamp); 
+  return date.toLocaleString('en-US', { 
+    year: 'numeric',
+    month: '2-digit',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true, 
+  });
+};
 
 const Conversation = ({ navigation }) => {
   const { messages, loading, error, fetchMessages } = useFetchConversations();
@@ -41,7 +52,7 @@ const Conversation = ({ navigation }) => {
         participant2Id,
         participant2FirstName, 
         participant2LastName, 
-        participant2_picture, 
+        participant2_picture,
         'Hey there!' 
       );
 
@@ -111,7 +122,7 @@ const Conversation = ({ navigation }) => {
                 ...Fonts.grayColor14Medium,
               }}
             >
-              {item.timestamp}
+           {formatTimestamp(item.timestamp)} 
             </Text>
           </View>
         </View>
@@ -125,7 +136,7 @@ const Conversation = ({ navigation }) => {
       <View style={{ flex: 1 }}>
         {header()}
         <Loader isLoading={loading} /> 
-        {!loading && (
+        {!loading && messages.length > 0 ? (
           <FlatList
             data={messages}
             keyExtractor={(item) => item.id}
@@ -133,9 +144,12 @@ const Conversation = ({ navigation }) => {
             contentContainerStyle={{ paddingBottom: Sizes.fixPadding }}
             showsVerticalScrollIndicator={false}
           />
-        )}
+        ) : !loading ? (
+          <View style={styles.noConversationsWrap}>
+            <Text style={{ textAlign: 'center', color: Colors.grayColor }}>No conversations available.</Text>
+          </View>
+        ) : null}
         {error && <Text style={{ color: 'red', textAlign: 'center' }}>{error}</Text>}
-        {messages.length === 0 && !loading && <Text style={{ textAlign: 'center', color: Colors.grayColor }}>No conversations available.</Text>}
       </View>
     </View>
   );
@@ -159,7 +173,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: Sizes.fixPadding * 2.0,
-    marginBottom: 5
+    marginBottom: 5,
   },
   chatIconWrapStyle: {
     width: 50.0,
@@ -182,5 +196,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0.0,
     borderRadius: 50,
+  },
+  noConversationsWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

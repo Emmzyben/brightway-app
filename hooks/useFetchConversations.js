@@ -25,8 +25,9 @@ const useFetchConversations = () => {
           const data = snapshot.val();
           const filteredMessages = Object.values(data).filter(
             (conversation) =>
-              conversation.participant1Id === userId ||
-              conversation.participant2Id === userId
+              (conversation.participant1Id === userId || conversation.participant2Id === userId) &&
+              conversation.lastMessage && 
+              conversation.lastMessage !== "Initial message" 
           );
           setMessages(filteredMessages);
         } else {
